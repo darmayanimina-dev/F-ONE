@@ -95,23 +95,19 @@ def generate_f_one_pdf(period: dict, processed_records: list, summary: dict) -> 
     elements.append(Spacer(1, 0.4 * cm))
 
     # 2. Main Ledger Table
-    # Columns:
+    # Columns (8 kolom ringkas):
     # 0: Tgl Vld
     # 1: Jlh Vld
     # 2: Order NDA
-    # 3: Tot Order NDA
-    # 4: Tot Vld
-    # 5: Jlh Order Lokal
-    # 6: ACC Haji
-    # 7: ACC Emas
-    # 8: ACC Cash
-    # 9: Status / Keterangan
+    # 3: Jlh Order Lokal
+    # 4: ACC Haji
+    # 5: ACC Emas
+    # 6: ACC Cash
+    # 7: Status / Keterangan
     headers = [
         "Tgl\nVld",
         "Jlh\nVld",
         "Order\nNDA",
-        "Tot Order\nNDA",
-        "Tot\nVld",
         "Jlh Order\nLokal",
         "ACC\nHaji",
         "ACC\nEmas",
@@ -138,7 +134,7 @@ def generate_f_one_pdf(period: dict, processed_records: list, summary: dict) -> 
             ket = "HARI MINGGU"
             row_data = [
                 Paragraph(f"<b>{tgl_display}</b>", cell_bold_style),
-                "-", "-", "-", "-", "-", "-", "-", "-",
+                "-", "-", "-", "-", "-", "-",
                 Paragraph(f"<i>{ket}</i>", cell_style)
             ]
             row_styles.append(('BACKGROUND', (0, row_num), (-1, row_num), colors.HexColor('#DBEAFE')))  # Soft Blue
@@ -146,15 +142,13 @@ def generate_f_one_pdf(period: dict, processed_records: list, summary: dict) -> 
             ket = hol_name if hol_name else "LIBUR NASIONAL"
             row_data = [
                 Paragraph(f"<b>{tgl_display}</b>", cell_bold_style),
-                "-", "-", "-", "-", "-", "-", "-", "-",
+                "-", "-", "-", "-", "-", "-",
                 Paragraph(f"<b>{ket}</b>", cell_style)
             ]
             row_styles.append(('BACKGROUND', (0, row_num), (-1, row_num), colors.HexColor('#FEF08A')))  # Soft Yellow
         else:
             jlh_vld = r.get("jlh_valid", 0)
             order_nda = r.get("order_nda", 0)
-            tot_nda = r.get("tot_order_nda", 0)
-            tot_vld = r.get("tot_vld", 0)
             lokal = r.get("jlh_order_lokal", 0)
             haji = r.get("acc_haji", 0)
             emas = r.get("acc_emas", 0)
@@ -175,8 +169,6 @@ def generate_f_one_pdf(period: dict, processed_records: list, summary: dict) -> 
                 Paragraph(tgl_display, cell_style),
                 str(jlh_vld) if jlh_vld > 0 else "-",
                 str(order_nda) if order_nda > 0 else "-",
-                str(tot_nda),
-                str(tot_vld),
                 str(lokal) if lokal > 0 else "-",
                 str(haji) if haji > 0 else "-",
                 str(emas) if emas > 0 else "-",
@@ -192,8 +184,6 @@ def generate_f_one_pdf(period: dict, processed_records: list, summary: dict) -> 
         Paragraph("<b>TOTAL</b>", cell_bold_style),
         Paragraph(f"<b>{summary['total_valid_bulan']}</b>", cell_bold_style),
         Paragraph(f"<b>{summary['total_order_nda']}</b>", cell_bold_style),
-        Paragraph(f"<b>{summary['total_order_nda']}</b>", cell_bold_style),
-        Paragraph(f"<b>{summary['total_valid_bulan']}</b>", cell_bold_style),
         Paragraph(f"<b>{summary['total_order_lokal']}</b>", cell_bold_style),
         Paragraph(f"<b>{summary['total_acc_haji']}</b>", cell_bold_style),
         Paragraph(f"<b>{summary['total_acc_emas']}</b>", cell_bold_style),
@@ -205,16 +195,14 @@ def generate_f_one_pdf(period: dict, processed_records: list, summary: dict) -> 
 
     # Table Column Widths (A4 Landscape usable width is ~26.7 cm)
     col_widths = [
-        1.6 * cm,  # Tgl Vld
-        1.6 * cm,  # Jlh Vld
-        1.8 * cm,  # Order NDA
-        2.2 * cm,  # Tot Order NDA
-        2.0 * cm,  # Tot Vld
-        2.2 * cm,  # Jlh Order Lokal
-        1.7 * cm,  # ACC Haji
-        1.7 * cm,  # ACC Emas
-        1.7 * cm,  # ACC Cash
-        8.2 * cm   # Status / Keterangan
+        2.0 * cm,  # Tgl Vld
+        2.2 * cm,  # Jlh Vld
+        2.5 * cm,  # Order NDA
+        2.5 * cm,  # Jlh Order Lokal
+        2.2 * cm,  # ACC Haji
+        2.2 * cm,  # ACC Emas
+        2.2 * cm,  # ACC Cash
+        10.9 * cm  # Status / Keterangan
     ]
 
     base_table_style = [

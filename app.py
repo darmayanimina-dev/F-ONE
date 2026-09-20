@@ -451,8 +451,6 @@ with st.sidebar:
             "Tgl": f"{day_num}/{active_period['month']}",
             "Jlh Valid": r.get("jlh_valid", 0) if (r.get("jlh_valid", 0) > 0 or not (is_sun or is_hol)) else "-",
             "Order NDA": r.get("order_nda", 0) if (r.get("order_nda", 0) > 0 or not (is_sun or is_hol)) else "-",
-            "Tot NDA": r.get("tot_order_nda", 0),
-            "Tot Valid": r.get("tot_vld", 0),
             "Lokal": r.get("jlh_order_lokal", 0) if r.get("jlh_order_lokal", 0) > 0 else "-",
             "ACC Haji": r.get("acc_haji", 0) if r.get("acc_haji", 0) > 0 else "-",
             "ACC Emas": r.get("acc_emas", 0) if r.get("acc_emas", 0) > 0 else "-",
@@ -463,8 +461,6 @@ with st.sidebar:
         "Tgl": "TOTAL",
         "Jlh Valid": summary['total_valid_bulan'],
         "Order NDA": summary['total_order_nda'],
-        "Tot NDA": summary['total_order_nda'],
-        "Tot Valid": summary['total_valid_bulan'],
         "Lokal": summary['total_order_lokal'],
         "ACC Haji": summary['total_acc_haji'],
         "ACC Emas": summary['total_acc_emas'],
@@ -554,8 +550,6 @@ for idx, r in enumerate(processed_records):
 
     jlh_vld = r.get("jlh_valid", 0)
     order_nda = r.get("order_nda", 0)
-    tot_nda = r.get("tot_order_nda", 0)
-    tot_vld = r.get("tot_vld", 0)
     lokal = r.get("jlh_order_lokal", 0)
     haji = r.get("acc_haji", 0)
     emas = r.get("acc_emas", 0)
@@ -582,8 +576,6 @@ for idx, r in enumerate(processed_records):
 
     v_disp = str(jlh_vld) if jlh_vld > 0 else "-"
     n_disp = str(order_nda) if order_nda > 0 else "-"
-    tn_disp = str(tot_nda) if tot_nda > 0 else "-"
-    tv_disp = str(tot_vld) if tot_vld > 0 else "-"
     l_disp = str(lokal) if lokal > 0 else "-"
     h_disp = str(haji) if haji > 0 else "-"
     e_disp = str(emas) if emas > 0 else "-"
@@ -597,8 +589,6 @@ for idx, r in enumerate(processed_records):
         f'<td style="font-weight:700;">{tgl_disp}</td>'
         f'<td>{v_disp}</td>'
         f'<td>{n_disp}</td>'
-        f'<td style="color:#0F766E; font-weight:600;">{tn_disp}</td>'
-        f'<td style="color:#1D4ED8; font-weight:700;">{tv_disp}</td>'
         f'<td>{l_disp}</td>'
         f'<td>{h_disp}</td>'
         f'<td>{e_disp}</td>'
@@ -614,8 +604,6 @@ total_row = (
     f'<td>TOTAL</td>'
     f'<td>{summary["total_valid_bulan"]}</td>'
     f'<td>{summary["total_order_nda"]}</td>'
-    f'<td>{summary["total_order_nda"]}</td>'
-    f'<td>{summary["total_valid_bulan"]}</td>'
     f'<td>{summary["total_order_lokal"]}</td>'
     f'<td>{summary["total_acc_haji"]}</td>'
     f'<td>{summary["total_acc_emas"]}</td>'
@@ -631,17 +619,15 @@ final_table = (
     '<table class="cms-table">'
     '<thead>'
     '<tr>'
-    '<th style="width: 65px;">Tgl<br/>Vld</th>'
-    '<th style="width: 70px;">Jlh<br/>Vld</th>'
-    '<th style="width: 75px;">Order<br/>NDA</th>'
-    '<th style="width: 85px;">Tot NDA</th>'
-    '<th style="width: 80px;">Tot Vld</th>'
-    '<th style="width: 75px;">Lokal</th>'
-    '<th style="width: 65px;">Haji</th>'
-    '<th style="width: 65px;">Emas</th>'
-    '<th style="width: 65px;">Cash</th>'
+    '<th style="width: 70px;">Tgl<br/>Vld</th>'
+    '<th style="width: 75px;">Jlh<br/>Vld</th>'
+    '<th style="width: 85px;">Order<br/>NDA</th>'
+    '<th style="width: 80px;">Lokal</th>'
+    '<th style="width: 75px;">Haji</th>'
+    '<th style="width: 75px;">Emas</th>'
+    '<th style="width: 75px;">Cash</th>'
     '<th>Status &amp; Keterangan</th>'
-    '<th style="width: 75px;">Aksi</th>'
+    '<th style="width: 80px;">Aksi</th>'
     '</tr>'
     '</thead>'
     '<tbody>'
