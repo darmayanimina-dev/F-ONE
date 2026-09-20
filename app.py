@@ -231,6 +231,25 @@ render_html("""
         border-color: #1E3A8A;
     }
 
+    /* Tombol Edit Langsung di Baris Tabel */
+    .action-edit-btn {
+        display: inline-block;
+        background-color: #EFF6FF;
+        color: #1D4ED8 !important;
+        border: 1.5px solid #93C5FD;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-decoration: none !important;
+        transition: all 0.15s ease-in-out;
+    }
+    .action-edit-btn:hover {
+        background-color: #1D4ED8;
+        color: white !important;
+        border-color: #1D4ED8;
+    }
+
     /* Tombol Utama */
     div.stButton > button {
         border-radius: 10px !important;
@@ -506,7 +525,7 @@ with main_head_col:
             📖 Buku Besar: {p_title}
         </h2>
         <div style="font-size: 0.95rem; color: #64748B; margin-top: 2px;">
-            Rekapitulasi order harian &bull; Klik pada angka tanggal atau baris untuk mengisi / mengedit order.
+            Rekapitulasi order harian &bull; Klik <b>[✏️ Edit]</b> langsung di baris tanggal untuk mengisi / mengubah angka.
         </div>
     </div>
     """)
@@ -580,22 +599,26 @@ for idx, r in enumerate(processed_records):
     e_disp = str(emas) if emas > 0 else "-"
     c_disp = str(cash) if cash > 0 else "-"
 
-    # Angka tanggal saja dengan link klik langsung edit
-    tgl_cell = f'<a href="?edit={date_str}" target="_self" class="tgl-badge-link" title="{tip_text}">{day_num}</a>'
+    # Angka tanggal saja
+    tgl_cell = f'<span style="font-weight:800; font-size:1.05rem; color:#1E3A8A;">{day_num}</span>'
+    
+    # Tombol [✏️ Edit] jelas dan mudah diklik
+    action_html = f'<a href="?edit={date_str}" target="_self" class="action-edit-btn">✏️ Edit</a>'
 
     table_html_rows.append(
-        f'<tr class="{r_cls} row-clickable" onclick="window.location.href=\'?edit={date_str}\'" title="{tip_text}">'
-        f'<td style="font-weight:800; font-size:1.05rem;">{tgl_cell}</td>'
+        f'<tr class="{r_cls}">'
+        f'<td>{tgl_cell}</td>'
         f'<td>{v_disp}</td>'
         f'<td>{n_disp}</td>'
         f'<td>{l_disp}</td>'
         f'<td>{h_disp}</td>'
         f'<td>{e_disp}</td>'
         f'<td>{c_disp}</td>'
+        f'<td>{action_html}</td>'
         f'</tr>'
     )
 
-# Baris Total Akumulatif (Tepat 7 Kolom)
+# Baris Total Akumulatif
 total_row = (
     f'<tr class="row-tot">'
     f'<td>TOTAL</td>'
@@ -605,25 +628,24 @@ total_row = (
     f'<td>{summary["total_acc_haji"]}</td>'
     f'<td>{summary["total_acc_emas"]}</td>'
     f'<td>{summary["total_acc_cash"]}</td>'
+    f'<td>-</td>'
     f'</tr>'
 )
 table_html_rows.append(total_row)
 
 final_table = (
-    '<div style="margin-bottom: 8px; font-size: 0.9rem; color: #475569; display: flex; align-items: center; gap: 6px;">'
-    '<span>💡 <b>Tips:</b> Klik pada angka tanggal atau barisnya untuk mengisi / mengedit order.</span>'
-    '</div>'
     '<div class="cms-table-wrapper">'
     '<table class="cms-table">'
     '<thead>'
     '<tr>'
-    '<th style="width: 80px;">Tanggal</th>'
+    '<th style="width: 75px;">Tanggal</th>'
     '<th>Jumlah<br/>Valid</th>'
     '<th>Order<br/>Notadana</th>'
     '<th>Order<br/>Lokal</th>'
     '<th>ACC<br/>Haji</th>'
     '<th>ACC<br/>Emas</th>'
     '<th>ACC<br/>Cash</th>'
+    '<th style="width: 85px;">Aksi</th>'
     '</tr>'
     '</thead>'
     '<tbody>'
