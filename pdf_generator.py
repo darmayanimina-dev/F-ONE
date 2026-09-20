@@ -94,25 +94,15 @@ def generate_f_one_pdf(period: dict, processed_records: list, summary: dict) -> 
     ))
     elements.append(Spacer(1, 0.4 * cm))
 
-    # 2. Main Ledger Table
-    # Columns (8 kolom ringkas):
-    # 0: Tgl Vld
-    # 1: Jlh Vld
-    # 2: Order NDA
-    # 3: Jlh Order Lokal
-    # 4: ACC Haji
-    # 5: ACC Emas
-    # 6: ACC Cash
-    # 7: Status / Keterangan
+    # 2. Main Ledger Table (7 Kolom Sesuai Buku Besar CADM)
     headers = [
-        "Tgl\nVld",
-        "Jlh\nVld",
-        "Order\nNDA",
-        "Jlh Order\nLokal",
+        "Tanggal",
+        "Jumlah\nValid",
+        "Order\nNotadana",
+        "Order\nLokal",
         "ACC\nHaji",
         "ACC\nEmas",
-        "ACC\nCash",
-        "Status / Keterangan"
+        "ACC\nCash"
     ]
 
     table_data = [[Paragraph(f"<b>{h}</b>", cell_bold_style) for h in headers]]
@@ -125,25 +115,19 @@ def generate_f_one_pdf(period: dict, processed_records: list, summary: dict) -> 
         day_num = r.get("day_num", 0)
         is_sun = bool(r.get("is_sunday", 0))
         is_hol = bool(r.get("is_holiday", 0))
-        hol_name = r.get("holiday_name", "")
-        catatan = r.get("catatan", "")
 
-        tgl_display = f"{day_num}/{period['month']}"
+        tgl_display = str(day_num)
 
         if is_sun:
-            ket = "HARI MINGGU"
             row_data = [
                 Paragraph(f"<b>{tgl_display}</b>", cell_bold_style),
-                "-", "-", "-", "-", "-", "-",
-                Paragraph(f"<i>{ket}</i>", cell_style)
+                "-", "-", "-", "-", "-", "-"
             ]
             row_styles.append(('BACKGROUND', (0, row_num), (-1, row_num), colors.HexColor('#DBEAFE')))  # Soft Blue
         elif is_hol:
-            ket = hol_name if hol_name else "LIBUR NASIONAL"
             row_data = [
                 Paragraph(f"<b>{tgl_display}</b>", cell_bold_style),
-                "-", "-", "-", "-", "-", "-",
-                Paragraph(f"<b>{ket}</b>", cell_style)
+                "-", "-", "-", "-", "-", "-"
             ]
             row_styles.append(('BACKGROUND', (0, row_num), (-1, row_num), colors.HexColor('#FEF08A')))  # Soft Yellow
         else:
@@ -153,32 +137,24 @@ def generate_f_one_pdf(period: dict, processed_records: list, summary: dict) -> 
             haji = r.get("acc_haji", 0)
             emas = r.get("acc_emas", 0)
             cash = r.get("acc_cash", 0)
-            is_match = r.get("is_daily_match", True)
-
-            status_icon = "MATCH" if is_match else f"MISMATCH ({r.get('daily_diff', 0)})"
-            if catatan:
-                ket_text = f"{status_icon} | {catatan}"
-            else:
-                ket_text = status_icon
 
             # Alternate row background
             bg_color = colors.HexColor('#FFFFFF') if idx % 2 == 0 else colors.HexColor('#F8FAFC')
             row_styles.append(('BACKGROUND', (0, row_num), (-1, row_num), bg_color))
 
             row_data = [
-                Paragraph(tgl_display, cell_style),
+                Paragraph(f"<b>{tgl_display}</b>", cell_style),
                 str(jlh_vld) if jlh_vld > 0 else "-",
                 str(order_nda) if order_nda > 0 else "-",
                 str(lokal) if lokal > 0 else "-",
                 str(haji) if haji > 0 else "-",
                 str(emas) if emas > 0 else "-",
-                str(cash) if cash > 0 else "-",
-                Paragraph(ket_text, cell_left_style if catatan else cell_style)
+                str(cash) if cash > 0 else "-"
             ]
 
         table_data.append(row_data)
 
-    # Total Row
+    # Total Row (Tepat 7 Kolom)
     total_row_num = len(table_data)
     total_row = [
         Paragraph("<b>TOTAL</b>", cell_bold_style),
@@ -187,22 +163,20 @@ def generate_f_one_pdf(period: dict, processed_records: list, summary: dict) -> 
         Paragraph(f"<b>{summary['total_order_lokal']}</b>", cell_bold_style),
         Paragraph(f"<b>{summary['total_acc_haji']}</b>", cell_bold_style),
         Paragraph(f"<b>{summary['total_acc_emas']}</b>", cell_bold_style),
-        Paragraph(f"<b>{summary['total_acc_cash']}</b>", cell_bold_style),
-        Paragraph(f"<b>{summary['status_text']}</b>", cell_bold_style)
+        Paragraph(f"<b>{summary['total_acc_cash']}</b>", cell_bold_style)
     ]
     table_data.append(total_row)
     row_styles.append(('BACKGROUND', (0, total_row_num), (-1, total_row_num), colors.HexColor('#E2E8F0')))
 
     # Table Column Widths (A4 Landscape usable width is ~26.7 cm)
     col_widths = [
-        2.0 * cm,  # Tgl Vld
-        2.2 * cm,  # Jlh Vld
-        2.5 * cm,  # Order NDA
-        2.5 * cm,  # Jlh Order Lokal
-        2.2 * cm,  # ACC Haji
-        2.2 * cm,  # ACC Emas
-        2.2 * cm,  # ACC Cash
-        10.9 * cm  # Status / Keterangan
+        2.7 * cm,  # Tanggal
+        4.0 * cm,  # Jumlah Valid
+        4.0 * cm,  # Order Notadana
+        4.0 * cm,  # Order Lokal
+        4.0 * cm,  # ACC Haji
+        4.0 * cm,  # ACC Emas
+        4.0 * cm   # ACC Cash
     ]
 
     base_table_style = [

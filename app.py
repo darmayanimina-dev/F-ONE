@@ -199,23 +199,36 @@ render_html("""
         font-size: 0.9rem;
     }
 
-    /* Tombol Edit Langsung di Baris Tabel */
-    .action-edit-btn {
-        display: inline-block;
-        background-color: #EFF6FF;
-        color: #1D4ED8 !important;
-        border: 1.5px solid #93C5FD;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        font-weight: 700;
-        text-decoration: none !important;
-        transition: all 0.15s ease-in-out;
+    /* Baris Tabel & Klik Edit */
+    tr.row-clickable {
+        cursor: pointer;
+        transition: background-color 0.15s ease;
     }
-    .action-edit-btn:hover {
-        background-color: #1D4ED8;
+    tr.row-clickable:hover {
+        background-color: #F8FAFC !important;
+    }
+    tr.row-sun.row-clickable:hover {
+        background-color: #E0E7FF !important;
+    }
+    tr.row-hol.row-clickable:hover {
+        background-color: #FEF08A !important;
+    }
+    .tgl-badge-link {
+        display: inline-block;
+        min-width: 28px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        background-color: #F1F5F9;
+        color: #1E3A8A !important;
+        font-weight: 800;
+        text-decoration: none !important;
+        border: 1px solid #CBD5E1;
+        transition: all 0.15s ease;
+    }
+    .tgl-badge-link:hover {
+        background-color: #1E3A8A;
         color: white !important;
-        border-color: #1D4ED8;
+        border-color: #1E3A8A;
     }
 
     /* Tombol Utama */
@@ -442,30 +455,23 @@ with st.sidebar:
         day_num = r.get("day_num", 0)
         is_sun = bool(r.get("is_sunday", 0))
         is_hol = bool(r.get("is_holiday", 0))
-        hol_name = r.get("holiday_name", "")
-        catatan = r.get("catatan", "")
-        status_keterangan = "MINGGU" if is_sun else (hol_name if is_hol else ("MATCH" if r.get("is_daily_match", True) else f"MISMATCH ({r.get('daily_diff', 0)})"))
-        if catatan:
-            status_keterangan += f" - {catatan}"
         x_rows.append({
-            "Tgl": f"{day_num}/{active_period['month']}",
-            "Jlh Valid": r.get("jlh_valid", 0) if (r.get("jlh_valid", 0) > 0 or not (is_sun or is_hol)) else "-",
-            "Order NDA": r.get("order_nda", 0) if (r.get("order_nda", 0) > 0 or not (is_sun or is_hol)) else "-",
-            "Lokal": r.get("jlh_order_lokal", 0) if r.get("jlh_order_lokal", 0) > 0 else "-",
+            "Tanggal": day_num,
+            "Jumlah Valid": r.get("jlh_valid", 0) if (r.get("jlh_valid", 0) > 0 or not (is_sun or is_hol)) else "-",
+            "Order Notadana": r.get("order_nda", 0) if (r.get("order_nda", 0) > 0 or not (is_sun or is_hol)) else "-",
+            "Order Lokal": r.get("jlh_order_lokal", 0) if r.get("jlh_order_lokal", 0) > 0 else "-",
             "ACC Haji": r.get("acc_haji", 0) if r.get("acc_haji", 0) > 0 else "-",
             "ACC Emas": r.get("acc_emas", 0) if r.get("acc_emas", 0) > 0 else "-",
             "ACC Cash": r.get("acc_cash", 0) if r.get("acc_cash", 0) > 0 else "-",
-            "Status": status_keterangan
         })
     x_rows.append({
-        "Tgl": "TOTAL",
-        "Jlh Valid": summary['total_valid_bulan'],
-        "Order NDA": summary['total_order_nda'],
-        "Lokal": summary['total_order_lokal'],
+        "Tanggal": "TOTAL",
+        "Jumlah Valid": summary['total_valid_bulan'],
+        "Order Notadana": summary['total_order_nda'],
+        "Order Lokal": summary['total_order_lokal'],
         "ACC Haji": summary['total_acc_haji'],
         "ACC Emas": summary['total_acc_emas'],
         "ACC Cash": summary['total_acc_cash'],
-        "Status": summary['status_text']
     })
     with pd.ExcelWriter(x_buf, engine='openpyxl') as writer:
         pd.DataFrame(x_rows).to_excel(writer, index=False, sheet_name=f"{nama_bulan}_{active_period['year']}")
@@ -535,14 +541,13 @@ render_html(f"""
 """)
 
 
-# 7. TABEL BUKU BESAR DENGAN TOMBOL [✏️ Edit] LANGSUNG DI SETIAP BARIS
+# 7. TABEL BUKU BESAR (7 KOLOM SESUAI BUKU FISIK CADM)
 mo = active_period["month"]
 table_html_rows = []
 
 for idx, r in enumerate(processed_records):
     day_num = r.get("day_num", 0)
     date_str = r.get("date_str", "")
-    tgl_disp = f"{day_num}/{mo}"
     is_sun = bool(r.get("is_sunday", 0))
     is_hol = bool(r.get("is_holiday", 0))
     hol_name = r.get("holiday_name", "")
@@ -554,25 +559,19 @@ for idx, r in enumerate(processed_records):
     haji = r.get("acc_haji", 0)
     emas = r.get("acc_emas", 0)
     cash = r.get("acc_cash", 0)
-    is_match = r.get("is_daily_match", True)
-    daily_diff = r.get("daily_diff", 0)
 
-    # Styling baris
+    # Styling baris & keterangan tooltip
     if is_sun:
         r_cls = "row-sun"
-        st_txt = "<i>Minggu</i>"
+        tip_text = "Hari Minggu (Klik untuk edit)"
     elif is_hol:
         r_cls = "row-hol"
-        st_txt = f"<b>{hol_name if hol_name else 'Libur'}</b>"
+        tip_text = f"{hol_name if hol_name else 'Libur Nasional'} (Klik untuk edit)"
     else:
         r_cls = ""
-        has_entry = (jlh_vld > 0 or order_nda > 0 or lokal > 0 or haji > 0 or emas > 0 or cash > 0)
-        if has_entry:
-            st_txt = "<span class='badge-ok'>✓ MATCH</span>" if is_match else f"<span class='badge-err'>⚠ SELISIH {daily_diff}</span>"
-        else:
-            st_txt = "<span style='color:#94A3B8;'>-</span>"
+        tip_text = f"Klik untuk edit tanggal {day_num}"
         if catatan:
-            st_txt += f" <small style='color:#64748B;'>({catatan})</small>"
+            tip_text += f" - Catatan: {catatan}"
 
     v_disp = str(jlh_vld) if jlh_vld > 0 else "-"
     n_disp = str(order_nda) if order_nda > 0 else "-"
@@ -581,24 +580,22 @@ for idx, r in enumerate(processed_records):
     e_disp = str(emas) if emas > 0 else "-"
     c_disp = str(cash) if cash > 0 else "-"
 
-    # Tombol [✏️ Edit] langsung di setiap baris
-    action_html = f'<a href="?edit={date_str}" target="_self" class="action-edit-btn">✏️ Edit</a>'
+    # Angka tanggal saja dengan link klik langsung edit
+    tgl_cell = f'<a href="?edit={date_str}" target="_self" class="tgl-badge-link" title="{tip_text}">{day_num}</a>'
 
     table_html_rows.append(
-        f'<tr class="{r_cls}">'
-        f'<td style="font-weight:700;">{tgl_disp}</td>'
+        f'<tr class="{r_cls} row-clickable" onclick="window.location.href=\'?edit={date_str}\'" title="{tip_text}">'
+        f'<td style="font-weight:800; font-size:1.05rem;">{tgl_cell}</td>'
         f'<td>{v_disp}</td>'
         f'<td>{n_disp}</td>'
         f'<td>{l_disp}</td>'
         f'<td>{h_disp}</td>'
         f'<td>{e_disp}</td>'
         f'<td>{c_disp}</td>'
-        f'<td style="text-align: left; padding-left: 10px;">{st_txt}</td>'
-        f'<td>{action_html}</td>'
         f'</tr>'
     )
 
-# Baris Total Akumulatif
+# Baris Total Akumulatif (Tepat 7 Kolom)
 total_row = (
     f'<tr class="row-tot">'
     f'<td>TOTAL</td>'
@@ -608,26 +605,25 @@ total_row = (
     f'<td>{summary["total_acc_haji"]}</td>'
     f'<td>{summary["total_acc_emas"]}</td>'
     f'<td>{summary["total_acc_cash"]}</td>'
-    f'<td style="text-align: left; padding-left: 10px; font-weight: 800;">{summary["status_text"]}</td>'
-    f'<td>-</td>'
     f'</tr>'
 )
 table_html_rows.append(total_row)
 
 final_table = (
+    '<div style="margin-bottom: 8px; font-size: 0.9rem; color: #475569; display: flex; align-items: center; gap: 6px;">'
+    '<span>💡 <b>Tips:</b> Klik pada angka tanggal atau barisnya untuk mengisi / mengedit order.</span>'
+    '</div>'
     '<div class="cms-table-wrapper">'
     '<table class="cms-table">'
     '<thead>'
     '<tr>'
-    '<th style="width: 70px;">Tgl<br/>Vld</th>'
-    '<th style="width: 75px;">Jlh<br/>Vld</th>'
-    '<th style="width: 85px;">Order<br/>NDA</th>'
-    '<th style="width: 80px;">Lokal</th>'
-    '<th style="width: 75px;">Haji</th>'
-    '<th style="width: 75px;">Emas</th>'
-    '<th style="width: 75px;">Cash</th>'
-    '<th>Status &amp; Keterangan</th>'
-    '<th style="width: 80px;">Aksi</th>'
+    '<th style="width: 80px;">Tanggal</th>'
+    '<th>Jumlah<br/>Valid</th>'
+    '<th>Order<br/>Notadana</th>'
+    '<th>Order<br/>Lokal</th>'
+    '<th>ACC<br/>Haji</th>'
+    '<th>ACC<br/>Emas</th>'
+    '<th>ACC<br/>Cash</th>'
     '</tr>'
     '</thead>'
     '<tbody>'
