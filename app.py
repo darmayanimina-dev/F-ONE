@@ -1,16 +1,15 @@
 """
 app.py
 Aplikasi F-ONE (Fidusia Order & Numbering Efficiency)
-Desain Minimalis, Bersih, dan Sangat Mudah Digunakan untuk CADM:
-- Tampilan tenang & lapang (tanpa elemen berlebihan).
-- Status rekonsiliasi ringkas: Total Valid vs Total Order.
-- Buku besar rapi dengan tombol Edit langsung di setiap baris.
-- Tanpa data bawaan (data 100% bersih, siap diisi sendiri).
+Tata Letak CMS Minimalis & Profesional:
+- Menu Navigasi Samping (Sidebar CMS) untuk Navigasi Periode, Riwayat, dan Dokumen.
+- Tombol [✏️ Edit] langsung di setiap baris tabel buku besar (In-Line Row Action).
+- Status rekonsiliasi ringkas: Total Valid vs Total Order (🟢 MATCH / 🔴 MISMATCH).
+- 100% Bersih tanpa dummy data.
 """
 import datetime
 import calendar
 import io
-import textwrap
 import pandas as pd
 import streamlit as st
 
@@ -30,84 +29,92 @@ from database import (
 from calculations import compute_cumulative_records, calculate_daily_match
 from pdf_generator import generate_f_one_pdf
 
-# Helper HTML render bersih tanpa risiko markdown code block
+# Helper fungsi render HTML bebas bug indentasi
 def render_html(html_str: str):
     lines = [line.strip() for line in html_str.strip().splitlines() if line.strip()]
     st.markdown("".join(lines), unsafe_allow_html=True)
 
 
-# 1. Konfigurasi Halaman Minimalis
+# 1. Konfigurasi Halaman Streamlit
 st.set_page_config(
-    page_title="F-ONE | Rekap Fidusia",
+    page_title="F-ONE | CMS Rekap Fidusia CADM",
     page_icon="⚖️",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# Inisialisasi Database Bersih (Tanpa Data Sampel)
+# Inisialisasi Database
 init_db()
 
-# 2. Styling Minimalis & Ramah Aksesibilitas
+# 2. Styling CMS Minimalis & Aksesibilitas
 render_html("""
 <style>
-    /* Tipografi Bersih & Elegan */
+    /* Tipografi Utama */
     html, body, [class*="css"] {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-        color: #1E293B !important;
+        color: #0F172A !important;
         font-size: 16px !important;
     }
 
-    /* Top Bar Minimalis */
-    .mini-topbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.75rem 0;
-        border-bottom: 2px solid #E2E8F0;
-        margin-bottom: 1.25rem;
+    /* Sidebar CMS Styling */
+    section[data-testid="stSidebar"] {
+        background-color: #F8FAFC !important;
+        border-right: 1.5px solid #E2E8F0 !important;
     }
-    .brand-title {
-        font-size: 1.75rem;
+    .cms-brand {
+        padding: 0.5rem 0 1rem 0;
+        border-bottom: 2px solid #E2E8F0;
+        margin-bottom: 1rem;
+    }
+    .cms-brand-title {
+        font-size: 1.6rem;
         font-weight: 800;
         color: #1E3A8A;
-        letter-spacing: -0.5px;
-        display: inline-flex;
+        display: flex;
         align-items: center;
         gap: 8px;
     }
-    .brand-tag {
-        font-size: 0.9rem;
+    .cms-brand-desc {
+        font-size: 0.85rem;
         color: #64748B;
         font-weight: 500;
-        margin-left: 8px;
+        margin-top: 4px;
+    }
+    .sidebar-section-title {
+        font-size: 0.82rem;
+        font-weight: 800;
+        color: #94A3B8;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        margin: 1.25rem 0 0.5rem 0;
     }
 
-    /* Bar Ringkasan Minimalis */
-    .summary-bar {
+    /* Top Summary Bar */
+    .summary-strip {
         display: flex;
         align-items: center;
         justify-content: space-between;
         background: #FFFFFF;
-        border: 1.5px solid #E2E8F0;
+        border: 1.5px solid #CBD5E1;
         border-radius: 12px;
         padding: 1rem 1.5rem;
         margin-bottom: 1.25rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.03);
         flex-wrap: wrap;
-        gap: 12px;
+        gap: 14px;
     }
-    .summary-stat {
+    .stat-item {
         display: flex;
         align-items: baseline;
-        gap: 10px;
+        gap: 8px;
     }
     .stat-label {
         font-size: 0.95rem;
-        color: #64748B;
+        color: #475569;
         font-weight: 600;
     }
-    .stat-number {
-        font-size: 1.8rem;
+    .stat-val {
+        font-size: 2rem;
         font-weight: 800;
         color: #0F172A;
     }
@@ -117,8 +124,8 @@ render_html("""
         border: 1.5px solid #86EFAC;
         padding: 6px 16px;
         border-radius: 20px;
-        font-weight: 700;
-        font-size: 1.05rem;
+        font-weight: 800;
+        font-size: 1.1rem;
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -129,81 +136,100 @@ render_html("""
         border: 1.5px solid #FCA5A5;
         padding: 6px 16px;
         border-radius: 20px;
-        font-weight: 700;
-        font-size: 1.05rem;
+        font-weight: 800;
+        font-size: 1.1rem;
         display: inline-flex;
         align-items: center;
         gap: 6px;
     }
 
-    /* Tabel Minimalis */
-    .table-container {
+    /* Tabel CMS & Action Button */
+    .cms-table-wrapper {
         border: 1.5px solid #CBD5E1;
         border-radius: 12px;
-        overflow: hidden;
+        overflow-x: auto;
         background: white;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     }
-    table.mini-table {
+    table.cms-table {
         width: 100%;
         border-collapse: collapse;
         font-size: 1rem;
     }
-    table.mini-table th {
+    table.cms-table th {
         background-color: #1E3A8A;
         color: white;
         font-weight: 700;
-        padding: 10px 8px;
+        padding: 11px 8px;
         text-align: center;
         font-size: 0.9rem;
         border: 1px solid #2563EB;
         white-space: pre-line;
     }
-    table.mini-table td {
-        padding: 8px 6px;
+    table.cms-table td {
+        padding: 9px 8px;
         text-align: center;
         border: 1px solid #E2E8F0;
         font-weight: 500;
     }
     tr.row-sun {
-        background-color: #EFF6FF !important; /* Biru lembut */
+        background-color: #EFF6FF !important; /* Biru lembut hari Minggu */
         color: #1E40AF !important;
         font-weight: 600;
     }
     tr.row-hol {
-        background-color: #FEF9C3 !important; /* Kuning lembut */
+        background-color: #FEF9C3 !important; /* Kuning lembut libur nasional */
         color: #854D0E !important;
         font-weight: 600;
     }
     tr.row-tot {
         background-color: #F1F5F9 !important;
         font-weight: 800 !important;
-        font-size: 1.05rem !important;
-        border-top: 2px solid #0F172A !important;
+        font-size: 1.1rem !important;
+        border-top: 2.5px solid #0F172A !important;
     }
     .badge-ok {
         color: #15803D;
         font-weight: 700;
-        font-size: 0.85rem;
+        font-size: 0.9rem;
     }
     .badge-err {
         color: #B91C1C;
         font-weight: 700;
-        font-size: 0.85rem;
+        font-size: 0.9rem;
     }
 
-    /* Tombol Utama Minimalis */
+    /* Tombol Edit Langsung di Baris Tabel */
+    .action-edit-btn {
+        display: inline-block;
+        background-color: #EFF6FF;
+        color: #1D4ED8 !important;
+        border: 1.5px solid #93C5FD;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-decoration: none !important;
+        transition: all 0.15s ease-in-out;
+    }
+    .action-edit-btn:hover {
+        background-color: #1D4ED8;
+        color: white !important;
+        border-color: #1D4ED8;
+    }
+
+    /* Tombol Utama */
     div.stButton > button {
         border-radius: 10px !important;
         font-weight: 700 !important;
-        padding: 0.6rem 1.2rem !important;
+        padding: 0.65rem 1.25rem !important;
         min-height: 48px !important;
     }
 </style>
 """)
 
 
-# 3. Navigasi Periode Aktif
+# 3. State Management Navigasi
 today = datetime.date.today()
 current_year = today.year
 current_month = today.month
@@ -215,14 +241,25 @@ if "selected_month" not in st.session_state:
 if "dialog_target_date" not in st.session_state:
     st.session_state["dialog_target_date"] = None
 
-# Ambil periode yang dipilih (kosong tanpa data dummy)
+
+# Deteksi query param ?edit=YYYY-MM-DD jika user klik tombol [✏️ Edit] langsung di tabel
+query_target_edit = None
+if "edit" in st.query_params:
+    query_target_edit = st.query_params["edit"]
+    # Bersihkan query params agar tidak terus menerus terbuka saat refresh
+    del st.query_params["edit"]
+
+
+# Ambil data periode aktif
 active_period = get_or_create_period(st.session_state["selected_year"], st.session_state["selected_month"])
 records = get_daily_records_by_period(active_period["id"])
 processed_records, summary = compute_cumulative_records(records)
+nama_bulan = MONTH_NAMES_ID[st.session_state["selected_month"]]
+p_title = f"{nama_bulan} {st.session_state['selected_year']}"
 
 
-# 4. Modal Dialog Input / Edit (@st.dialog)
-@st.dialog("📝 Input / Edit Order")
+# 4. Modal Dialog Input / Edit Order (@st.dialog)
+@st.dialog("📝 Input / Edit Rekap Order Fidusia")
 def dialog_input_order(default_date_str: str = None):
     p_yr = st.session_state["selected_year"]
     p_mo = st.session_state["selected_month"]
@@ -239,10 +276,14 @@ def dialog_input_order(default_date_str: str = None):
         else:
             curr_date = datetime.date(p_yr, p_mo, 1)
 
-    st.caption(f"Periode: **{MONTH_NAMES_ID[p_mo]} {p_yr}**")
+    render_html(f"""
+    <div style='background: #EFF6FF; border: 1.5px solid #3B82F6; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;'>
+        <b style='color: #1E3A8A; font-size: 1.05rem;'>📅 Periode: {MONTH_NAMES_ID[p_mo]} {p_yr}</b>
+    </div>
+    """)
 
     tgl_selected = st.date_input(
-        "Tanggal:",
+        "Pilih Tanggal Transaksi:",
         value=curr_date,
         min_value=datetime.date(p_yr, p_mo, 1),
         max_value=datetime.date(p_yr, p_mo, num_days),
@@ -267,7 +308,7 @@ def dialog_input_order(default_date_str: str = None):
     st.divider()
     c1, c2 = st.columns(2)
     with c1:
-        order_nda = st.number_input("Order NDA (Notadana):", min_value=0, value=int(existing_rec.get("order_nda", 0)), step=1)
+        order_nda = st.number_input("Order Notadana (NDA):", min_value=0, value=int(existing_rec.get("order_nda", 0)), step=1)
         order_lokal = st.number_input("Notaris Lokal (PT/CV):", min_value=0, value=int(existing_rec.get("jlh_order_lokal", 0)), step=1)
         acc_cash = st.number_input("ACC Cash:", min_value=0, value=int(existing_rec.get("acc_cash", 0)), step=1)
 
@@ -281,15 +322,15 @@ def dialog_input_order(default_date_str: str = None):
     st.divider()
     cv1, cv2 = st.columns([1.2, 1])
     with cv1:
-        jlh_valid = st.number_input("Jumlah Valid (Total Valid Hari Ini):", min_value=0, value=def_vld, step=1)
+        jlh_valid = st.number_input("Jumlah Valid (Total Valid):", min_value=0, value=def_vld, step=1)
 
     diff = jlh_valid - sum_orders
     with cv2:
         if diff == 0:
             render_html(f"""
             <div style='background: #DCFCE7; border: 2px solid #86EFAC; color: #166534; padding: 10px; border-radius: 8px; text-align: center; margin-top: 20px;'>
-                <b style='font-size: 1.1rem;'>🟢 MATCH</b><br/>
-                <span style='font-size: 0.85rem;'>Valid = Order ({sum_orders})</span>
+                <b style='font-size: 1.1rem;'>🟢 MATCH (Pas)</b><br/>
+                <span style='font-size: 0.85rem;'>Valid = Total Order ({sum_orders})</span>
             </div>
             """)
         else:
@@ -300,12 +341,12 @@ def dialog_input_order(default_date_str: str = None):
             </div>
             """)
 
-    catatan = st.text_input("Catatan (Opsional):", value=existing_rec.get("catatan", ""))
+    catatan = st.text_input("Catatan Tambahan (Opsional):", value=existing_rec.get("catatan", ""))
 
     st.write("")
     b1, b2 = st.columns(2)
     with b1:
-        if st.button("💾 Simpan", type="primary", use_container_width=True):
+        if st.button("💾 Simpan Data", type="primary", use_container_width=True):
             upsert_daily_record(
                 period_id=active_period["id"],
                 date_str=tgl_str,
@@ -321,86 +362,79 @@ def dialog_input_order(default_date_str: str = None):
                 acc_cash=acc_cash,
                 catatan=catatan
             )
-            st.success("Tersimpan!")
+            st.success("Berhasil disimpan!")
             st.rerun()
     with b2:
         if st.button("Batal", use_container_width=True):
             st.rerun()
 
 
-# 5. Top Bar Minimalis
-nama_bulan = MONTH_NAMES_ID[st.session_state["selected_month"]]
-p_title = f"{nama_bulan} {st.session_state['selected_year']}"
+# Jika terdeteksi klik edit dari baris tabel, langsung buka dialog
+if query_target_edit:
+    dialog_input_order(query_target_edit)
 
-col_brand, col_pilih = st.columns([3, 2])
-with col_brand:
-    render_html(f"""
-    <div class="mini-topbar">
-        <div>
-            <span class="brand-title">⚖️ F-ONE</span>
-            <span class="brand-tag">Rekap Order Fidusia &bull; {p_title}</span>
-        </div>
+
+# 5. CMS SIDEBAR (Menu Navigasi Samping)
+with st.sidebar:
+    render_html("""
+    <div class="cms-brand">
+        <div class="cms-brand-title">⚖️ F-ONE</div>
+        <div class="cms-brand-desc">Fidusia Order &amp; Numbering Efficiency</div>
     </div>
     """)
 
-with col_pilih:
-    p_c1, p_c2 = st.columns(2)
-    with p_c1:
-        yrs = list_all_years()
-        if current_year not in yrs:
-            yrs.insert(0, current_year)
-        sel_y = st.selectbox("Tahun", options=yrs, index=yrs.index(st.session_state["selected_year"]) if st.session_state["selected_year"] in yrs else 0, label_visibility="collapsed")
-        if sel_y != st.session_state["selected_year"]:
-            st.session_state["selected_year"] = sel_y
+    st.markdown('<div class="sidebar-section-title">📅 Periode Aktif</div>', unsafe_allow_html=True)
+    status_tag = "🟢 SELESAI" if active_period["status"] == "COMPLETED" else "🔵 AKTIF"
+    render_html(f"""
+    <div style="background: white; border: 1.5px solid #CBD5E1; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;">
+        <div style="font-size: 1.15rem; font-weight: 800; color: #1E3A8A;">{p_title}</div>
+        <div style="font-size: 0.85rem; font-weight: 700; margin-top: 2px;">Status: {status_tag}</div>
+    </div>
+    """)
+
+    # Tombol kembali ke bulan berjalan jika sedang membuka bulan lampau
+    is_running_now = (st.session_state["selected_year"] == current_year and st.session_state["selected_month"] == current_month)
+    if not is_running_now:
+        if st.button(f"📍 Buka Bulan Ini ({MONTH_NAMES_ID[current_month]})", use_container_width=True):
+            st.session_state["selected_year"] = current_year
+            st.session_state["selected_month"] = current_month
             st.rerun()
-    with p_c2:
-        sel_m = st.selectbox("Bulan", options=list(range(1, 13)), index=st.session_state["selected_month"] - 1, format_func=lambda m: MONTH_NAMES_ID[m], label_visibility="collapsed")
-        if sel_m != st.session_state["selected_month"]:
-            st.session_state["selected_month"] = sel_m
+
+    st.markdown('<div class="sidebar-section-title">📁 Riwayat Periode (CMS)</div>', unsafe_allow_html=True)
+    
+    # Pilih Tahun
+    all_yrs = list_all_years()
+    if current_year not in all_yrs:
+        all_yrs.insert(0, current_year)
+    
+    sel_yr = st.selectbox("Pilih Tahun", options=all_yrs, index=all_yrs.index(st.session_state["selected_year"]) if st.session_state["selected_year"] in all_yrs else 0, key="side_yr")
+    if sel_yr != st.session_state["selected_year"]:
+        st.session_state["selected_year"] = sel_yr
+        st.rerun()
+
+    # Daftar Bulan dalam Tahun Tersebut
+    periods_in_yr = list_periods_by_year(sel_yr)
+    for p in periods_in_yr:
+        m_name = MONTH_NAMES_ID.get(p["month"], f"Bulan {p['month']}")
+        is_selected = (p["month"] == st.session_state["selected_month"] and p["year"] == st.session_state["selected_year"])
+        p_stat_badge = "✓ Selesai" if p["status"] == "COMPLETED" else "Aktif"
+        
+        btn_label = f"{'👉 ' if is_selected else ''}{m_name} ({p_stat_badge})"
+        if st.button(btn_label, key=f"nav_p_{p['id']}", use_container_width=True, type="primary" if is_selected else "secondary"):
+            st.session_state["selected_year"] = p["year"]
+            st.session_state["selected_month"] = p["month"]
             st.rerun()
 
-
-# 6. Bar Ringkasan Minimalis (Status Match & Total Utama)
-status_pill = (
-    f'<div class="pill-match">🟢 MATCH (Pas)</div>'
-    if summary["is_monthly_match"]
-    else f'<div class="pill-mismatch">🔴 MISMATCH (Selisih {abs(summary["selisih_bulanan"])})</div>'
-)
-
-render_html(f"""
-<div class="summary-bar">
-    <div class="summary-stat">
-        <span class="stat-label">Total Valid:</span>
-        <span class="stat-number" style="color: #1D4ED8;">{summary['total_valid_bulan']}</span>
-    </div>
-    <div class="summary-stat">
-        <span class="stat-label">Total Order (NDA + Lokal + ACC):</span>
-        <span class="stat-number" style="color: #0F766E;">{summary['total_semua_order']}</span>
-    </div>
-    <div>
-        {status_pill}
-    </div>
-</div>
-""")
-
-
-# 7. Action Bar Sederhana
-btn_c1, btn_c2, btn_c3, btn_c4 = st.columns([2.5, 1.5, 1.5, 2.5])
-with btn_c1:
-    if st.button("➕ Catat Order Hari Ini", type="primary", use_container_width=True):
-        dialog_input_order()
-
-with btn_c2:
-    pdf_bytes = generate_f_one_pdf(active_period, processed_records, summary)
+    st.markdown('<div class="sidebar-section-title">📄 Ekspor &amp; Dokumen</div>', unsafe_allow_html=True)
+    pdf_data = generate_f_one_pdf(active_period, processed_records, summary)
     st.download_button(
-        label="📄 Unduh PDF",
-        data=pdf_bytes,
-        file_name=f"F-ONE_{nama_bulan}_{st.session_state['selected_year']}.pdf",
+        label="📄 Unduh Rekap PDF",
+        data=pdf_data,
+        file_name=f"F-ONE_Rekap_{nama_bulan}_{st.session_state['selected_year']}.pdf",
         mime="application/pdf",
         use_container_width=True
     )
 
-with btn_c3:
     # Excel Download
     x_buf = io.BytesIO()
     x_rows = []
@@ -410,11 +444,9 @@ with btn_c3:
         is_hol = bool(r.get("is_holiday", 0))
         hol_name = r.get("holiday_name", "")
         catatan = r.get("catatan", "")
-        
         status_keterangan = "MINGGU" if is_sun else (hol_name if is_hol else ("MATCH" if r.get("is_daily_match", True) else f"MISMATCH ({r.get('daily_diff', 0)})"))
         if catatan:
             status_keterangan += f" - {catatan}"
-
         x_rows.append({
             "Tgl": f"{day_num}/{active_period['month']}",
             "Jlh Valid": r.get("jlh_valid", 0) if (r.get("jlh_valid", 0) > 0 or not (is_sun or is_hol)) else "-",
@@ -441,20 +473,19 @@ with btn_c3:
     })
     with pd.ExcelWriter(x_buf, engine='openpyxl') as writer:
         pd.DataFrame(x_rows).to_excel(writer, index=False, sheet_name=f"{nama_bulan}_{active_period['year']}")
-    
     st.download_button(
-        label="📊 Excel",
+        label="📊 Unduh Excel (.xlsx)",
         data=x_buf.getvalue(),
-        file_name=f"F-ONE_{nama_bulan}_{st.session_state['selected_year']}.xlsx",
+        file_name=f"F-ONE_Rekap_{nama_bulan}_{st.session_state['selected_year']}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True
     )
 
-with btn_c4:
+    st.markdown('<div class="sidebar-section-title">⚙️ Status Periode</div>', unsafe_allow_html=True)
     if active_period["status"] == "ACTIVE":
-        if st.button("✓ Selesaikan Periode", use_container_width=True):
+        if st.button("✓ Selesaikan Periode Ini", use_container_width=True):
             update_period_status(active_period["id"], "COMPLETED")
-            st.success("Periode ditandai selesai.")
+            st.success("Ditandai selesai.")
             st.rerun()
     else:
         if st.button("🔓 Buka Kembali Periode", use_container_width=True):
@@ -462,14 +493,59 @@ with btn_c4:
             st.rerun()
 
 
-# 8. Tabel Buku Besar Bersih & Interaktif
-st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+# 6. KONTEN UTAMA CMS DASHBOARD
 
+# Header & Aksi Cepat
+main_head_col, main_act_col = st.columns([3.5, 2])
+with main_head_col:
+    render_html(f"""
+    <div style="margin-bottom: 8px;">
+        <h2 style="margin: 0; font-size: 1.85rem; font-weight: 800; color: #1E3A8A;">
+            📖 Buku Besar: {p_title}
+        </h2>
+        <div style="font-size: 0.95rem; color: #64748B; margin-top: 2px;">
+            Rekapitulasi order harian &bull; Klik <b>[✏️ Edit]</b> langsung di baris tanggal untuk mengubah angka.
+        </div>
+    </div>
+    """)
+
+with main_act_col:
+    st.write("")
+    if st.button("➕ Catat Order Hari Ini", type="primary", use_container_width=True):
+        dialog_input_order()
+
+
+# Bar Ringkasan Minimalis
+status_chip = (
+    f'<div class="pill-match">🟢 MATCH (Pas)</div>'
+    if summary["is_monthly_match"]
+    else f'<div class="pill-mismatch">🔴 MISMATCH (Selisih {abs(summary["selisih_bulanan"])})</div>'
+)
+
+render_html(f"""
+<div class="summary-strip">
+    <div class="stat-item">
+        <span class="stat-label">Total Valid:</span>
+        <span class="stat-val" style="color: #1D4ED8;">{summary['total_valid_bulan']}</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label">Total Order (Semua):</span>
+        <span class="stat-val" style="color: #0F766E;">{summary['total_semua_order']}</span>
+    </div>
+    <div>
+        {status_chip}
+    </div>
+</div>
+""")
+
+
+# 7. TABEL BUKU BESAR DENGAN TOMBOL [✏️ Edit] LANGSUNG DI SETIAP BARIS
 mo = active_period["month"]
 table_html_rows = []
 
 for idx, r in enumerate(processed_records):
     day_num = r.get("day_num", 0)
+    date_str = r.get("date_str", "")
     tgl_disp = f"{day_num}/{mo}"
     is_sun = bool(r.get("is_sunday", 0))
     is_hol = bool(r.get("is_holiday", 0))
@@ -513,6 +589,9 @@ for idx, r in enumerate(processed_records):
     e_disp = str(emas) if emas > 0 else "-"
     c_disp = str(cash) if cash > 0 else "-"
 
+    # Tombol [✏️ Edit] langsung di setiap baris
+    action_html = f'<a href="?edit={date_str}" target="_self" class="action-edit-btn">✏️ Edit</a>'
+
     table_html_rows.append(
         f'<tr class="{r_cls}">'
         f'<td style="font-weight:700;">{tgl_disp}</td>'
@@ -525,10 +604,11 @@ for idx, r in enumerate(processed_records):
         f'<td>{e_disp}</td>'
         f'<td>{c_disp}</td>'
         f'<td style="text-align: left; padding-left: 10px;">{st_txt}</td>'
+        f'<td>{action_html}</td>'
         f'</tr>'
     )
 
-# Baris Total
+# Baris Total Akumulatif
 total_row = (
     f'<tr class="row-tot">'
     f'<td>TOTAL</td>'
@@ -541,16 +621,17 @@ total_row = (
     f'<td>{summary["total_acc_emas"]}</td>'
     f'<td>{summary["total_acc_cash"]}</td>'
     f'<td style="text-align: left; padding-left: 10px; font-weight: 800;">{summary["status_text"]}</td>'
+    f'<td>-</td>'
     f'</tr>'
 )
 table_html_rows.append(total_row)
 
 final_table = (
-    '<div class="table-container">'
-    '<table class="mini-table">'
+    '<div class="cms-table-wrapper">'
+    '<table class="cms-table">'
     '<thead>'
     '<tr>'
-    '<th style="width: 70px;">Tgl<br/>Vld</th>'
+    '<th style="width: 65px;">Tgl<br/>Vld</th>'
     '<th style="width: 70px;">Jlh<br/>Vld</th>'
     '<th style="width: 75px;">Order<br/>NDA</th>'
     '<th style="width: 85px;">Tot NDA</th>'
@@ -560,6 +641,7 @@ final_table = (
     '<th style="width: 65px;">Emas</th>'
     '<th style="width: 65px;">Cash</th>'
     '<th>Status &amp; Keterangan</th>'
+    '<th style="width: 75px;">Aksi</th>'
     '</tr>'
     '</thead>'
     '<tbody>'
@@ -571,55 +653,16 @@ final_table = (
 render_html(final_table)
 
 
-# 9. Edit Tanggal Tertentu (Sederhana di Bawah Tabel)
+# 8. Catatan Buku Besar (Collapsible / Mengembang di Bawah)
 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-with st.expander("✏️ Edit Tanggal Tertentu"):
-    col_e1, col_e2 = st.columns([3, 2])
-    with col_e1:
-        edit_opts = [f"Tanggal {r['day_num']} ({r['day_num']}/{mo})" for r in processed_records]
-        pick_day = st.selectbox("Pilih tanggal yang ingin diubah:", options=range(len(edit_opts)), format_func=lambda i: edit_opts[i])
-    with col_e2:
-        st.write("")
-        st.write("")
-        if st.button("Buka Form Edit", use_container_width=True):
-            dialog_input_order(processed_records[pick_day]["date_str"])
-
-
-# 10. Catatan & Riwayat Ringkas
-c_not, c_his = st.columns([1, 1])
-
-with c_not:
-    with st.expander("📝 Catatan Buku Besar (Pending Order)"):
-        n_text = st.text_area("Catatan:", value=active_period.get("notes", ""), height=100, placeholder="Contoh: pending order, nama debitur...")
-        if st.button("Simpan Catatan"):
-            update_period_notes(active_period["id"], n_text)
-            st.success("Catatan tersimpan!")
-            st.rerun()
-
-with c_his:
-    with st.expander("📁 Riwayat Periode Lampau"):
-        all_yrs = list_all_years()
-        for y in all_yrs:
-            pers = list_periods_by_year(y)
-            for p in pers:
-                if p["id"] != active_period["id"]:
-                    p_name = MONTH_NAMES_ID.get(p["month"], str(p["month"]))
-                    c_h1, c_h2 = st.columns([3, 1])
-                    with c_h1:
-                        st.write(f"**{p_name} {y}** ({'Selesai' if p['status'] == 'COMPLETED' else 'Aktif'})")
-                    with c_h2:
-                        if st.button("Buka", key=f"hist_{p['id']}"):
-                            st.session_state["selected_year"] = y
-                            st.session_state["selected_month"] = p["month"]
-                            st.rerun()
-
-
-# 11. Panduan Sederhana CADM
-with st.expander("💡 Cara Pakai (Panduan Singkat CADM)"):
-    st.markdown("""
-    1. **Input Order Baru:** Klik tombol biru **`➕ Catat Order Hari Ini`** di bagian atas.
-    2. **Masukkan Angka:** Isi order Notadana, Notaris Lokal, ACC, dan Jumlah Valid hari itu.
-    3. **Cek Status:** Jika kotak bertuliskan **🟢 MATCH**, klik Simpan! Buku besar otomatis bertambah tanpa kalkulator.
-    4. **Jika Ada Salah Input:** Buka kotak **`✏️ Edit Tanggal Tertentu`**, pilih tanggalnya, dan ubah angkanya. F-ONE otomatis menghitung ulang seluruh tanggal berikutnya.
-    5. **Unduh Laporan:** Klik **`📄 Unduh PDF`** untuk mencetak laporan resmi.
-    """)
+with st.expander("📝 Catatan Buku Besar (Pending Order)"):
+    n_text = st.text_area(
+        "Tulis catatan pending order atau memo khusus di sini:",
+        value=active_period.get("notes", ""),
+        height=110,
+        placeholder="Contoh: pending order, nama debitur..."
+    )
+    if st.button("Simpan Catatan"):
+        update_period_notes(active_period["id"], n_text)
+        st.success("Catatan tersimpan!")
+        st.rerun()
