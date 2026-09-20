@@ -506,7 +506,7 @@ with main_head_col:
             📖 Buku Besar: {p_title}
         </h2>
         <div style="font-size: 0.95rem; color: #64748B; margin-top: 2px;">
-            Rekapitulasi order harian &bull; Klik <b>[✏️ Edit]</b> langsung di baris tanggal untuk mengubah angka.
+            Rekapitulasi order harian &bull; Klik pada angka tanggal atau baris untuk mengisi / mengedit order.
         </div>
     </div>
     """)
