@@ -143,34 +143,51 @@ render_html("""
         gap: 6px;
     }
 
-    /* Tabel CMS & Action Button */
+    /* Tabel CMS & Freeze Header */
     .cms-table-wrapper {
         border: 1.5px solid #CBD5E1;
         border-radius: 12px;
+        overflow-y: auto;
         overflow-x: auto;
+        max-height: 550px;
         background: white;
         box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        position: relative;
     }
     table.cms-table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: separate;
+        border-spacing: 0;
         font-size: 1rem;
     }
     table.cms-table th {
+        position: sticky;
+        top: 0;
+        z-index: 20;
         background-color: #1E3A8A;
         color: white;
         font-weight: 700;
         padding: 11px 8px;
         text-align: center;
         font-size: 0.9rem;
-        border: 1px solid #2563EB;
+        border-top: none;
+        border-bottom: 2px solid #1D4ED8;
+        border-right: 1px solid #2563EB;
         white-space: pre-line;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    }
+    table.cms-table th:first-child {
+        border-left: none;
     }
     table.cms-table td {
         padding: 9px 8px;
         text-align: center;
-        border: 1px solid #E2E8F0;
+        border-bottom: 1px solid #E2E8F0;
+        border-right: 1px solid #E2E8F0;
         font-weight: 500;
+    }
+    table.cms-table td:first-child {
+        border-left: none;
     }
     tr.row-sun {
         background-color: #EFF6FF !important; /* Biru lembut hari Minggu */
