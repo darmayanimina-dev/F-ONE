@@ -338,42 +338,61 @@ def dialog_input_order(default_date_str: str = None):
         holiday_name = st.text_input("Keterangan Libur:", value=existing_rec.get("holiday_name", ""))
 
     st.divider()
+
+    # 1. Yang diinput pertama kali: Total Valid
+    total_valid = st.number_input(
+        "Total Valid:",
+        min_value=0,
+        value=int(existing_rec.get("jlh_valid", 0)),
+        step=1
+    )
+
+    st.write("")
+    # 2. Notaris Lokal, ACC Cash, ACC Haji, ACC Emas
     c1, c2 = st.columns(2)
     with c1:
-        order_nda = st.number_input("Order Notadana (NDA):", min_value=0, value=int(existing_rec.get("order_nda", 0)), step=1)
-        order_lokal = st.number_input("Notaris Lokal (PT/CV):", min_value=0, value=int(existing_rec.get("jlh_order_lokal", 0)), step=1)
+        order_lokal = st.number_input("Notaris Lokal:", min_value=0, value=int(existing_rec.get("jlh_order_lokal", 0)), step=1)
         acc_cash = st.number_input("ACC Cash:", min_value=0, value=int(existing_rec.get("acc_cash", 0)), step=1)
 
     with c2:
         acc_haji = st.number_input("ACC Haji:", min_value=0, value=int(existing_rec.get("acc_haji", 0)), step=1)
         acc_emas = st.number_input("ACC Emas:", min_value=0, value=int(existing_rec.get("acc_emas", 0)), step=1)
 
-    sum_orders = order_nda + order_lokal + acc_haji + acc_emas + acc_cash
-    def_vld = int(existing_rec.get("jlh_valid", sum_orders if sum_orders > 0 else 0))
+    # 3. Order Notadana otomatis = Total Valid dikurangi semua itu
+    subtotal_lainnya = order_lokal + acc_cash + acc_haji + acc_emas
+    order_nda = max(0, total_valid - subtotal_lainnya)
 
-    st.divider()
-    cv1, cv2 = st.columns([1.2, 1])
-    with cv1:
-        jlh_valid = st.number_input("Jumlah Valid (Total Valid):", min_value=0, value=def_vld, step=1)
-
-    diff = jlh_valid - sum_orders
-    with cv2:
-        if diff == 0:
-            render_html(f"""
-            <div style='background: #DCFCE7; border: 2px solid #86EFAC; color: #166534; padding: 10px; border-radius: 8px; text-align: center; margin-top: 20px;'>
-                <b style='font-size: 1.1rem;'>🟢 MATCH (Pas)</b><br/>
-                <span style='font-size: 0.85rem;'>Valid = Total Order ({sum_orders})</span>
+    st.write("")
+    if subtotal_lainnya > total_valid:
+        render_html(f"""
+        <div style='background: #FEE2E2; border: 2px solid #FCA5A5; color: #991B1B; padding: 12px 14px; border-radius: 8px; margin-bottom: 8px;'>
+            <div style='font-size: 1rem; font-weight: 800;'>⚠️ Total Order Melebihi Total Valid</div>
+            <div style='font-size: 0.88rem; margin-top: 4px;'>
+                Jumlah Notaris Lokal, Cash, Haji, dan Emas: {subtotal_lainnya}. Total Valid: {total_valid}. Selisih: {subtotal_lainnya - total_valid}.
             </div>
-            """)
-        else:
-            render_html(f"""
-            <div style='background: #FEE2E2; border: 2px solid #FCA5A5; color: #991B1B; padding: 10px; border-radius: 8px; text-align: center; margin-top: 20px;'>
-                <b style='font-size: 1.1rem;'>🔴 MISMATCH</b><br/>
-                <span style='font-size: 0.85rem;'>Selisih: {abs(diff)}</span>
+            <div style='font-size: 0.95rem; font-weight: 700; margin-top: 6px;'>
+                Order Notadana diatur ke: 0
             </div>
-            """)
+        </div>
+        """)
+    else:
+        render_html(f"""
+        <div style='background: #F0FDF4; border: 2px solid #86EFAC; color: #166534; padding: 12px 14px; border-radius: 8px; margin-bottom: 8px;'>
+            <div style='display: flex; justify-content: space-between; align-items: center;'>
+                <div>
+                    <div style='font-size: 0.9rem; font-weight: 700; color: #15803D;'>Order Notadana Otomatis</div>
+                    <div style='font-size: 0.82rem; color: #475569; margin-top: 2px;'>
+                        Total Valid dikurangi Notaris Lokal, ACC Cash, ACC Haji, dan ACC Emas
+                    </div>
+                </div>
+                <div style='font-size: 1.6rem; font-weight: 900; color: #15803D;'>
+                    {order_nda}
+                </div>
+            </div>
+        </div>
+        """)
 
-    catatan = st.text_input("Catatan Tambahan (Opsional):", value=existing_rec.get("catatan", ""))
+    catatan = st.text_input("Catatan Tambahan:", value=existing_rec.get("catatan", ""))
 
     st.write("")
     b1, b2 = st.columns(2)
@@ -386,7 +405,7 @@ def dialog_input_order(default_date_str: str = None):
                 is_sunday=is_sunday,
                 is_holiday=is_holiday,
                 holiday_name=holiday_name,
-                jlh_valid=jlh_valid,
+                jlh_valid=total_valid,
                 order_nda=order_nda,
                 jlh_order_lokal=order_lokal,
                 acc_haji=acc_haji,
@@ -427,12 +446,12 @@ with st.sidebar:
     # Tombol kembali ke bulan berjalan jika sedang membuka bulan lampau
     is_running_now = (st.session_state["selected_year"] == current_year and st.session_state["selected_month"] == current_month)
     if not is_running_now:
-        if st.button(f"📍 Buka Bulan Ini ({MONTH_NAMES_ID[current_month]})", use_container_width=True):
+        if st.button(f"📍 Buka Bulan Ini: {MONTH_NAMES_ID[current_month]}", use_container_width=True):
             st.session_state["selected_year"] = current_year
             st.session_state["selected_month"] = current_month
             st.rerun()
 
-    st.markdown('<div class="sidebar-section-title">📁 Riwayat Periode (CMS)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-section-title">📁 Riwayat Periode</div>', unsafe_allow_html=True)
     
     # Pilih Tahun
     all_yrs = list_all_years()
@@ -451,7 +470,7 @@ with st.sidebar:
         is_selected = (p["month"] == st.session_state["selected_month"] and p["year"] == st.session_state["selected_year"])
         p_stat_badge = "✓ Selesai" if p["status"] == "COMPLETED" else "Aktif"
         
-        btn_label = f"{'👉 ' if is_selected else ''}{m_name} ({p_stat_badge})"
+        btn_label = f"{'👉 ' if is_selected else ''}{m_name} • {p_stat_badge}"
         if st.button(btn_label, key=f"nav_p_{p['id']}", use_container_width=True, type="primary" if is_selected else "secondary"):
             st.session_state["selected_year"] = p["year"]
             st.session_state["selected_month"] = p["month"]
@@ -476,7 +495,7 @@ with st.sidebar:
         is_hol = bool(r.get("is_holiday", 0))
         x_rows.append({
             "Tanggal": day_num,
-            "Jumlah Valid": r.get("jlh_valid", 0) if (r.get("jlh_valid", 0) > 0 or not (is_sun or is_hol)) else "-",
+            "Total Valid": r.get("jlh_valid", 0) if (r.get("jlh_valid", 0) > 0 or not (is_sun or is_hol)) else "-",
             "Order Notadana": r.get("order_nda", 0) if (r.get("order_nda", 0) > 0 or not (is_sun or is_hol)) else "-",
             "Order Lokal": r.get("jlh_order_lokal", 0) if r.get("jlh_order_lokal", 0) > 0 else "-",
             "ACC Haji": r.get("acc_haji", 0) if r.get("acc_haji", 0) > 0 else "-",
@@ -485,7 +504,7 @@ with st.sidebar:
         })
     x_rows.append({
         "Tanggal": "TOTAL",
-        "Jumlah Valid": summary['total_valid_bulan'],
+        "Total Valid": summary['total_valid_bulan'],
         "Order Notadana": summary['total_order_nda'],
         "Order Lokal": summary['total_order_lokal'],
         "ACC Haji": summary['total_acc_haji'],
@@ -495,7 +514,7 @@ with st.sidebar:
     with pd.ExcelWriter(x_buf, engine='openpyxl') as writer:
         pd.DataFrame(x_rows).to_excel(writer, index=False, sheet_name=f"{nama_bulan}_{active_period['year']}")
     st.download_button(
-        label="📊 Unduh Excel (.xlsx)",
+        label="📊 Unduh Excel",
         data=x_buf.getvalue(),
         file_name=f"F-ONE_Rekap_{nama_bulan}_{st.session_state['selected_year']}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -538,9 +557,9 @@ with main_act_col:
 
 # Bar Ringkasan Minimalis
 status_chip = (
-    f'<div class="pill-match">🟢 MATCH (Pas)</div>'
+    f'<div class="pill-match">🟢 MATCH</div>'
     if summary["is_monthly_match"]
-    else f'<div class="pill-mismatch">🔴 MISMATCH (Selisih {abs(summary["selisih_bulanan"])})</div>'
+    else f'<div class="pill-mismatch">🔴 MISMATCH: Selisih {abs(summary["selisih_bulanan"])}</div>'
 )
 
 render_html(f"""
@@ -550,7 +569,7 @@ render_html(f"""
         <span class="stat-val" style="color: #1D4ED8;">{summary['total_valid_bulan']}</span>
     </div>
     <div class="stat-item">
-        <span class="stat-label">Total Order (Semua):</span>
+        <span class="stat-label">Total Order:</span>
         <span class="stat-val" style="color: #0F766E;">{summary['total_semua_order']}</span>
     </div>
     <div>
@@ -582,10 +601,10 @@ for idx, r in enumerate(processed_records):
     # Styling baris & keterangan tooltip
     if is_sun:
         r_cls = "row-sun"
-        tip_text = "Hari Minggu (Klik untuk edit)"
+        tip_text = "Hari Minggu: Klik untuk edit"
     elif is_hol:
         r_cls = "row-hol"
-        tip_text = f"{hol_name if hol_name else 'Libur Nasional'} (Klik untuk edit)"
+        tip_text = f"{hol_name if hol_name else 'Libur Nasional'}: Klik untuk edit"
     else:
         r_cls = ""
         tip_text = f"Klik untuk edit tanggal {day_num}"
@@ -639,7 +658,7 @@ final_table = (
     '<thead>'
     '<tr>'
     '<th style="width: 75px;">Tanggal</th>'
-    '<th>Jumlah<br/>Valid</th>'
+    '<th>Total<br/>Valid</th>'
     '<th>Order<br/>Notadana</th>'
     '<th>Order<br/>Lokal</th>'
     '<th>ACC<br/>Haji</th>'
@@ -659,7 +678,7 @@ render_html(final_table)
 
 # 8. Catatan Buku Besar (Collapsible / Mengembang di Bawah)
 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-with st.expander("📝 Catatan Buku Besar (Pending Order)"):
+with st.expander("📝 Catatan Buku Besar"):
     n_text = st.text_area(
         "Tulis catatan pending order atau memo khusus di sini:",
         value=active_period.get("notes", ""),

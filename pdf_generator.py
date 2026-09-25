@@ -97,7 +97,7 @@ def generate_f_one_pdf(period: dict, processed_records: list, summary: dict) -> 
     # 2. Main Ledger Table (7 Kolom Sesuai Buku Besar CADM)
     headers = [
         "Tanggal",
-        "Jumlah\nValid",
+        "Total\nValid",
         "Order\nNotadana",
         "Order\nLokal",
         "ACC\nHaji",

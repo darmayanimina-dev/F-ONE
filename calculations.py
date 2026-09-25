@@ -25,7 +25,7 @@ def calculate_daily_match(
         "total_order_hari": total_order_hari,
         "selisih": selisih,
         "is_match": is_match,
-        "status_text": "MATCH" if is_match else f"MISMATCH ({'+' if selisih > 0 else ''}{selisih})",
+        "status_text": "MATCH" if is_match else f"MISMATCH: {selisih}",
         "badge_color": "green" if is_match else "red"
     }
 
@@ -116,7 +116,7 @@ def compute_cumulative_records(records: List[Dict[str, Any]]) -> Tuple[List[Dict
         "is_monthly_match": is_monthly_match,
         "has_mismatch_any_day": has_mismatch_any_day,
         "mismatch_days": mismatch_days,
-        "status_text": "MATCH" if is_monthly_match else f"MISMATCH (Selisih {abs(selisih_bulanan)})",
+        "status_text": "MATCH" if is_monthly_match else f"MISMATCH: Selisih {abs(selisih_bulanan)}",
         "jumlah_hari_terisi": len([r for r in processed if not r.get("is_sunday") and not r.get("is_holiday")])
     }
 
