@@ -25,7 +25,7 @@ from database import (
     update_period_status,
     update_period_notes,
     get_change_history,
-    get_database_tables_data,
+    reset_change_history,
     MONTH_NAMES_ID
 )
 from calculations import compute_cumulative_records, calculate_daily_match
@@ -590,10 +590,9 @@ with st.sidebar:
 
 
 # 6. KONTEN UTAMA CMS DASHBOARD
-tab_buku, tab_riwayat, tab_database = st.tabs([
+tab_buku, tab_riwayat = st.tabs([
     "📖 Buku Besar CADM",
-    "🕒 Riwayat Perubahan (Audit Trail)",
-    "🗄️ Database Viewer (Format Tabel)"
+    "🕒 Riwayat Perubahan"
 ])
 
 with tab_buku:
@@ -811,74 +810,19 @@ with tab_riwayat:
         df_hist = pd.DataFrame(hist_rows)
         st.dataframe(df_hist, use_container_width=True, hide_index=True)
 
-        csv_hist = df_hist.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 Unduh Tabel Riwayat Perubahan (CSV)",
-            data=csv_hist,
-            file_name=f"F-ONE_Riwayat_Audit_{datetime.date.today().strftime('%Y%m%d')}.csv",
-            mime="text/csv"
-        )
+        d_col1, d_col2 = st.columns([2, 1])
+        with d_col1:
+            csv_hist = df_hist.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Unduh Tabel Riwayat Perubahan (CSV)",
+                data=csv_hist,
+                file_name=f"F-ONE_Riwayat_Audit_{datetime.date.today().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
+        with d_col2:
+            if st.button("🗑️ Reset Riwayat Perubahan", use_container_width=True):
+                reset_change_history(target_pid)
+                st.success("Riwayat berhasil direset.")
+                st.rerun()
 
-
-with tab_database:
-    render_html("""
-    <div style="margin-bottom: 12px;">
-        <h3 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: #1E3A8A;">
-            🗄️ Format Database Terstruktur (fone_database.db)
-        </h3>
-        <div style="font-size: 0.92rem; color: #64748B; margin-top: 2px;">
-            Melihat seluruh data database SQLite dalam bentuk tabel yang mudah dibaca, transparan, dan dapat diunduh.
-        </div>
-    </div>
-    """)
-
-    db_all = get_database_tables_data()
-    m_col1, m_col2, m_col3 = st.columns(3)
-    with m_col1:
-        st.metric("Total Periode", len(db_all["periods"]))
-    with m_col2:
-        st.metric("Total Data Transaksi Aktif", len(db_all["daily_records"]))
-    with m_col3:
-        st.metric("Total Log Riwayat Perubahan", len(db_all["change_history"]))
-
-    pilihan_tabel = st.radio(
-        "Pilih Tabel Database yang Ingin Dibaca:",
-        options=[
-            "📊 Tabel Transaksi Harian (daily_records)",
-            "📅 Tabel Periode (periods)",
-            "🕒 Tabel Riwayat Audit (change_history)"
-        ],
-        horizontal=True
-    )
-
-    if "daily_records" in pilihan_tabel:
-        st.markdown("#### 📋 Isi Tabel `daily_records` (Baris Transaksi yang Memiliki Nilai > 0)")
-        df_daily = pd.DataFrame(db_all["daily_records"])
-        if not df_daily.empty:
-            st.dataframe(df_daily, use_container_width=True, hide_index=True)
-            csv_daily = df_daily.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Unduh Tabel daily_records (CSV)", csv_daily, "table_daily_records.csv", "text/csv")
-        else:
-            st.info("Tabel daily_records kosong.")
-
-    elif "periods" in pilihan_tabel:
-        st.markdown("#### 📅 Isi Tabel `periods` (Daftar Periode)")
-        df_periods = pd.DataFrame(db_all["periods"])
-        if not df_periods.empty:
-            df_periods["nama_bulan"] = df_periods["month"].map(MONTH_NAMES_ID)
-            st.dataframe(df_periods, use_container_width=True, hide_index=True)
-            csv_periods = df_periods.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Unduh Tabel periods (CSV)", csv_periods, "table_periods.csv", "text/csv")
-        else:
-            st.info("Tabel periods kosong.")
-
-    else:
-        st.markdown("#### 🕒 Isi Tabel `change_history` (Audit Trail Database)")
-        df_raw_hist = pd.DataFrame(db_all["change_history"])
-        if not df_raw_hist.empty:
-            st.dataframe(df_raw_hist, use_container_width=True, hide_index=True)
-            csv_raw_hist = df_raw_hist.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Unduh Tabel change_history (CSV)", csv_raw_hist, "table_change_history.csv", "text/csv")
-        else:
-            st.info("Tabel change_history kosong.")
 

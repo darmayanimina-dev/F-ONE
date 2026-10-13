@@ -86,27 +86,17 @@ def init_db():
             )
         """)
 
-        # Otomatis catat riwayat awal jika tabel history masih kosong
-        cursor.execute("SELECT COUNT(*) FROM change_history")
-        if cursor.fetchone()[0] == 0:
-            cursor.execute("SELECT * FROM daily_records WHERE jlh_valid > 0 ORDER BY period_id ASC, day_num ASC")
-            for r in cursor.fetchall():
-                now_str = r["updated_at"] or datetime.datetime.now().isoformat()
-                cursor.execute("""
-                    INSERT INTO change_history (
-                        period_id, date_str, day_num, action_type,
-                        old_valid, new_valid, old_nda, new_nda,
-                        old_lokal, new_lokal, old_haji, new_haji,
-                        old_emas, new_emas, old_cash, new_cash,
-                        catatan_perubahan, changed_at
-                    ) VALUES (?, ?, ?, 'INPUT_AWAL', 0, ?, 0, ?, 0, ?, 0, ?, 0, ?, 0, ?, ?, ?)
-                """, (
-                    r["period_id"], r["date_str"], r["day_num"],
-                    r["jlh_valid"], r["order_nda"], r["jlh_order_lokal"],
-                    r["acc_haji"], r["acc_emas"], r["acc_cash"],
-                    f"Pencatatan Buku Besar CADM (Tgl {r['day_num']})",
-                    now_str
-                ))
+        conn.commit()
+
+
+def reset_change_history(period_id: Optional[int] = None):
+    """Mereset/menghapus catatan riwayat perubahan"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        if period_id:
+            cursor.execute("DELETE FROM change_history WHERE period_id = ?", (period_id,))
+        else:
+            cursor.execute("DELETE FROM change_history")
         conn.commit()
 
 
