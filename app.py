@@ -24,6 +24,8 @@ from database import (
     upsert_daily_record,
     update_period_status,
     update_period_notes,
+    get_change_history,
+    get_database_tables_data,
     MONTH_NAMES_ID
 )
 from calculations import compute_cumulative_records, calculate_daily_match
@@ -588,160 +590,295 @@ with st.sidebar:
 
 
 # 6. KONTEN UTAMA CMS DASHBOARD
+tab_buku, tab_riwayat, tab_database = st.tabs([
+    "📖 Buku Besar CADM",
+    "🕒 Riwayat Perubahan (Audit Trail)",
+    "🗄️ Database Viewer (Format Tabel)"
+])
 
-# Header & Aksi Cepat
-main_head_col, main_act_col = st.columns([3.5, 2])
-with main_head_col:
+with tab_buku:
+    # Header & Aksi Cepat
+    main_head_col, main_act_col = st.columns([3.5, 2])
+    with main_head_col:
+        render_html(f"""
+        <div style="margin-bottom: 8px;">
+            <h2 style="margin: 0; font-size: 1.85rem; font-weight: 800; color: #1E3A8A;">
+                📖 Buku Besar: {p_title}
+            </h2>
+            <div style="font-size: 0.95rem; color: #64748B; margin-top: 2px;">
+                Rekapitulasi order harian &bull; Klik <b>[✏️ Edit]</b> langsung di baris tanggal untuk mengisi / mengubah angka.
+            </div>
+        </div>
+        """)
+
+    with main_act_col:
+        st.write("")
+        btn_catat_label = "➕ Catat Order Hari Ini" if is_running_now else f"➕ Catat Order {nama_bulan}"
+        if st.button(btn_catat_label, type="primary", use_container_width=True):
+            dialog_input_order()
+
+    # Bar Ringkasan Minimalis
+    status_chip = (
+        f'<div class="pill-match">🟢 MATCH</div>'
+        if summary["is_monthly_match"]
+        else f'<div class="pill-mismatch">🔴 MISMATCH: Selisih {abs(summary["selisih_bulanan"])}</div>'
+    )
+
     render_html(f"""
-    <div style="margin-bottom: 8px;">
-        <h2 style="margin: 0; font-size: 1.85rem; font-weight: 800; color: #1E3A8A;">
-            📖 Buku Besar: {p_title}
-        </h2>
-        <div style="font-size: 0.95rem; color: #64748B; margin-top: 2px;">
-            Rekapitulasi order harian &bull; Klik <b>[✏️ Edit]</b> langsung di baris tanggal untuk mengisi / mengubah angka.
+    <div class="summary-strip">
+        <div class="stat-item">
+            <span class="stat-label">Total Valid:</span>
+            <span class="stat-val" style="color: #1D4ED8;">{summary['total_valid_bulan']}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Total Order:</span>
+            <span class="stat-val" style="color: #0F766E;">{summary['total_semua_order']}</span>
+        </div>
+        <div>
+            {status_chip}
         </div>
     </div>
     """)
 
-with main_act_col:
-    st.write("")
-    btn_catat_label = "➕ Catat Order Hari Ini" if is_running_now else f"➕ Catat Order {nama_bulan}"
-    if st.button(btn_catat_label, type="primary", use_container_width=True):
-        dialog_input_order()
+    # 7. TABEL BUKU BESAR (7 KOLOM SESUAI BUKU FISIK CADM)
+    mo = active_period["month"]
+    yr = active_period["year"]
+    table_html_rows = []
 
+    for idx, r in enumerate(processed_records):
+        day_num = r.get("day_num", 0)
+        date_str = r.get("date_str", "")
+        is_sun = bool(r.get("is_sunday", 0))
+        is_hol = bool(r.get("is_holiday", 0))
+        hol_name = r.get("holiday_name", "")
+        catatan = r.get("catatan", "")
 
-# Bar Ringkasan Minimalis
-status_chip = (
-    f'<div class="pill-match">🟢 MATCH</div>'
-    if summary["is_monthly_match"]
-    else f'<div class="pill-mismatch">🔴 MISMATCH: Selisih {abs(summary["selisih_bulanan"])}</div>'
-)
+        jlh_vld = r.get("jlh_valid", 0)
+        order_nda = r.get("order_nda", 0)
+        lokal = r.get("jlh_order_lokal", 0)
+        haji = r.get("acc_haji", 0)
+        emas = r.get("acc_emas", 0)
+        cash = r.get("acc_cash", 0)
 
-render_html(f"""
-<div class="summary-strip">
-    <div class="stat-item">
-        <span class="stat-label">Total Valid:</span>
-        <span class="stat-val" style="color: #1D4ED8;">{summary['total_valid_bulan']}</span>
-    </div>
-    <div class="stat-item">
-        <span class="stat-label">Total Order:</span>
-        <span class="stat-val" style="color: #0F766E;">{summary['total_semua_order']}</span>
-    </div>
-    <div>
-        {status_chip}
-    </div>
-</div>
-""")
+        # Styling baris & keterangan tooltip
+        if is_sun:
+            r_cls = "row-sun"
+        elif is_hol:
+            r_cls = "row-hol"
+        else:
+            r_cls = ""
 
+        v_disp = str(jlh_vld) if jlh_vld > 0 else "-"
+        n_disp = str(order_nda) if order_nda > 0 else "-"
+        l_disp = str(lokal) if lokal > 0 else "-"
+        h_disp = str(haji) if haji > 0 else "-"
+        e_disp = str(emas) if emas > 0 else "-"
+        c_disp = str(cash) if cash > 0 else "-"
 
-# 7. TABEL BUKU BESAR (7 KOLOM SESUAI BUKU FISIK CADM)
-mo = active_period["month"]
-yr = active_period["year"]
-table_html_rows = []
+        tgl_cell = f'<span style="font-weight:800; font-size:1.05rem; color:#1E3A8A;">{day_num}</span>'
+        action_html = f'<a href="?edit={date_str}&month={mo}&year={yr}" target="_self" class="action-edit-btn">✏️ Edit</a>'
 
-for idx, r in enumerate(processed_records):
-    day_num = r.get("day_num", 0)
-    date_str = r.get("date_str", "")
-    is_sun = bool(r.get("is_sunday", 0))
-    is_hol = bool(r.get("is_holiday", 0))
-    hol_name = r.get("holiday_name", "")
-    catatan = r.get("catatan", "")
+        table_html_rows.append(
+            f'<tr class="{r_cls}">'
+            f'<td>{tgl_cell}</td>'
+            f'<td>{v_disp}</td>'
+            f'<td>{n_disp}</td>'
+            f'<td>{l_disp}</td>'
+            f'<td>{h_disp}</td>'
+            f'<td>{e_disp}</td>'
+            f'<td>{c_disp}</td>'
+            f'<td>{action_html}</td>'
+            f'</tr>'
+        )
 
-    jlh_vld = r.get("jlh_valid", 0)
-    order_nda = r.get("order_nda", 0)
-    lokal = r.get("jlh_order_lokal", 0)
-    haji = r.get("acc_haji", 0)
-    emas = r.get("acc_emas", 0)
-    cash = r.get("acc_cash", 0)
-
-    # Styling baris & keterangan tooltip
-    if is_sun:
-        r_cls = "row-sun"
-        tip_text = "Hari Minggu: Klik untuk edit"
-    elif is_hol:
-        r_cls = "row-hol"
-        tip_text = f"{hol_name if hol_name else 'Libur Nasional'}: Klik untuk edit"
-    else:
-        r_cls = ""
-        tip_text = f"Klik untuk edit tanggal {day_num}"
-        if catatan:
-            tip_text += f" - Catatan: {catatan}"
-
-    v_disp = str(jlh_vld) if jlh_vld > 0 else "-"
-    n_disp = str(order_nda) if order_nda > 0 else "-"
-    l_disp = str(lokal) if lokal > 0 else "-"
-    h_disp = str(haji) if haji > 0 else "-"
-    e_disp = str(emas) if emas > 0 else "-"
-    c_disp = str(cash) if cash > 0 else "-"
-
-    # Angka tanggal saja
-    tgl_cell = f'<span style="font-weight:800; font-size:1.05rem; color:#1E3A8A;">{day_num}</span>'
-    
-    # Tombol [✏️ Edit] jelas dan mudah diklik
-    action_html = f'<a href="?edit={date_str}&month={mo}&year={yr}" target="_self" class="action-edit-btn">✏️ Edit</a>'
-
-    table_html_rows.append(
-        f'<tr class="{r_cls}">'
-        f'<td>{tgl_cell}</td>'
-        f'<td>{v_disp}</td>'
-        f'<td>{n_disp}</td>'
-        f'<td>{l_disp}</td>'
-        f'<td>{h_disp}</td>'
-        f'<td>{e_disp}</td>'
-        f'<td>{c_disp}</td>'
-        f'<td>{action_html}</td>'
+    # Baris Total Akumulatif
+    total_row = (
+        f'<tr class="row-tot">'
+        f'<td>TOTAL</td>'
+        f'<td>{summary["total_valid_bulan"]}</td>'
+        f'<td>{summary["total_order_nda"]}</td>'
+        f'<td>{summary["total_order_lokal"]}</td>'
+        f'<td>{summary["total_acc_haji"]}</td>'
+        f'<td>{summary["total_acc_emas"]}</td>'
+        f'<td>{summary["total_acc_cash"]}</td>'
+        f'<td>-</td>'
         f'</tr>'
     )
+    table_html_rows.append(total_row)
 
-# Baris Total Akumulatif
-total_row = (
-    f'<tr class="row-tot">'
-    f'<td>TOTAL</td>'
-    f'<td>{summary["total_valid_bulan"]}</td>'
-    f'<td>{summary["total_order_nda"]}</td>'
-    f'<td>{summary["total_order_lokal"]}</td>'
-    f'<td>{summary["total_acc_haji"]}</td>'
-    f'<td>{summary["total_acc_emas"]}</td>'
-    f'<td>{summary["total_acc_cash"]}</td>'
-    f'<td>-</td>'
-    f'</tr>'
-)
-table_html_rows.append(total_row)
-
-final_table = (
-    '<div class="cms-table-wrapper">'
-    '<table class="cms-table">'
-    '<thead>'
-    '<tr>'
-    '<th style="width: 75px;">Tanggal</th>'
-    '<th>Total<br/>Valid</th>'
-    '<th>Order<br/>Notadana</th>'
-    '<th>Order<br/>Lokal</th>'
-    '<th>ACC<br/>Haji</th>'
-    '<th>ACC<br/>Emas</th>'
-    '<th>ACC<br/>Cash</th>'
-    '<th style="width: 85px;">Aksi</th>'
-    '</tr>'
-    '</thead>'
-    '<tbody>'
-    + "".join(table_html_rows) +
-    '</tbody>'
-    '</table>'
-    '</div>'
-)
-render_html(final_table)
-
-
-# 8. Catatan Buku Besar (Collapsible / Mengembang di Bawah)
-st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-with st.expander("📝 Catatan Buku Besar"):
-    n_text = st.text_area(
-        "Tulis catatan pending order atau memo khusus di sini:",
-        value=active_period.get("notes", ""),
-        height=110,
-        placeholder="Contoh: pending order, nama debitur..."
+    final_table = (
+        '<div class="cms-table-wrapper">'
+        '<table class="cms-table">'
+        '<thead>'
+        '<tr>'
+        '<th style="width: 75px;">Tanggal</th>'
+        '<th>Total<br/>Valid</th>'
+        '<th>Order<br/>Notadana</th>'
+        '<th>Order<br/>Lokal</th>'
+        '<th>ACC<br/>Haji</th>'
+        '<th>ACC<br/>Emas</th>'
+        '<th>ACC<br/>Cash</th>'
+        '<th style="width: 85px;">Aksi</th>'
+        '</tr>'
+        '</thead>'
+        '<tbody>'
+        + "".join(table_html_rows) +
+        '</tbody>'
+        '</table>'
+        '</div>'
     )
-    if st.button("Simpan Catatan"):
-        update_period_notes(active_period["id"], n_text)
-        st.success("Catatan tersimpan!")
-        st.rerun()
+    render_html(final_table)
+
+    # Catatan Buku Besar (Collapsible / Mengembang di Bawah)
+    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    with st.expander("📝 Catatan Buku Besar"):
+        n_text = st.text_area(
+            "Tulis catatan pending order atau memo khusus di sini:",
+            value=active_period.get("notes", ""),
+            height=110,
+            placeholder="Contoh: pending order, nama debitur..."
+        )
+        if st.button("Simpan Catatan"):
+            update_period_notes(active_period["id"], n_text)
+            st.success("Catatan tersimpan!")
+            st.rerun()
+
+
+with tab_riwayat:
+    render_html(f"""
+    <div style="margin-bottom: 12px;">
+        <h3 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: #1E3A8A;">
+            🕒 Riwayat Perubahan & Audit Trail
+        </h3>
+        <div style="font-size: 0.92rem; color: #64748B; margin-top: 2px;">
+            Log historis setiap aksi input, edit, dan revisi transaksi fidusia CADM secara transparan.
+        </div>
+    </div>
+    """)
+
+    c_filt1, c_filt2 = st.columns([2, 1])
+    with c_filt1:
+        filter_opt = st.radio(
+            "Pilih Cakupan Riwayat:",
+            options=["Semua Riwayat Transaksi", f"Hanya Periode Aktif ({p_title})"],
+            horizontal=True
+        )
+    with c_filt2:
+        st.write("")
+        hist_limit = st.selectbox("Maksimal Baris Ditampilkan:", [50, 100, 200, 500], index=1)
+
+    target_pid = active_period["id"] if "Periode Aktif" in filter_opt else None
+    history_list = get_change_history(period_id=target_pid, limit=hist_limit)
+
+    if not history_list:
+        st.info("Belum ada riwayat perubahan data yang tercatat.")
+    else:
+        st.markdown(f"**Menampilkan {len(history_list)} riwayat perubahan terbaru (format tabel):**")
+        hist_rows = []
+        for h in history_list:
+            dt_raw = h.get("changed_at", "")
+            try:
+                dt_obj = datetime.datetime.fromisoformat(dt_raw)
+                dt_fmt = dt_obj.strftime("%d/%m/%Y %H:%M:%S")
+            except Exception:
+                dt_fmt = str(dt_raw)
+
+            b_name = MONTH_NAMES_ID.get(h.get("month", 0), f"Bln {h.get('month', '')}")
+            p_label = f"{b_name} {h.get('year', '')}"
+            tgl_trx = f"{h.get('day_num', '')} ({h.get('date_str', '')})"
+
+            v_chg = f"{h.get('old_valid', 0)} ➔ {h.get('new_valid', 0)}" if h.get('old_valid', 0) != h.get('new_valid', 0) else str(h.get('new_valid', 0))
+            n_chg = f"{h.get('old_nda', 0)} ➔ {h.get('new_nda', 0)}" if h.get('old_nda', 0) != h.get('new_nda', 0) else str(h.get('new_nda', 0))
+            l_chg = f"{h.get('old_lokal', 0)} ➔ {h.get('new_lokal', 0)}" if h.get('old_lokal', 0) != h.get('new_lokal', 0) else str(h.get('new_lokal', 0))
+            h_chg = f"{h.get('old_haji', 0)} ➔ {h.get('new_haji', 0)}" if h.get('old_haji', 0) != h.get('new_haji', 0) else str(h.get('new_haji', 0))
+            e_chg = f"{h.get('old_emas', 0)} ➔ {h.get('new_emas', 0)}" if h.get('old_emas', 0) != h.get('new_emas', 0) else str(h.get('new_emas', 0))
+            c_chg = f"{h.get('old_cash', 0)} ➔ {h.get('new_cash', 0)}" if h.get('old_cash', 0) != h.get('new_cash', 0) else str(h.get('new_cash', 0))
+
+            hist_rows.append({
+                "Waktu Perubahan": dt_fmt,
+                "Periode": p_label,
+                "Tanggal Transaksi": tgl_trx,
+                "Aksi": h.get("action_type", ""),
+                "Valid": v_chg,
+                "Order NDA": n_chg,
+                "Lokal": l_chg,
+                "Haji": h_chg,
+                "Emas": e_chg,
+                "Cash": c_chg,
+                "Rincian Perubahan": h.get("catatan_perubahan", ""),
+            })
+
+        df_hist = pd.DataFrame(hist_rows)
+        st.dataframe(df_hist, use_container_width=True, hide_index=True)
+
+        csv_hist = df_hist.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Unduh Tabel Riwayat Perubahan (CSV)",
+            data=csv_hist,
+            file_name=f"F-ONE_Riwayat_Audit_{datetime.date.today().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
+
+
+with tab_database:
+    render_html("""
+    <div style="margin-bottom: 12px;">
+        <h3 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: #1E3A8A;">
+            🗄️ Format Database Terstruktur (fone_database.db)
+        </h3>
+        <div style="font-size: 0.92rem; color: #64748B; margin-top: 2px;">
+            Melihat seluruh data database SQLite dalam bentuk tabel yang mudah dibaca, transparan, dan dapat diunduh.
+        </div>
+    </div>
+    """)
+
+    db_all = get_database_tables_data()
+    m_col1, m_col2, m_col3 = st.columns(3)
+    with m_col1:
+        st.metric("Total Periode", len(db_all["periods"]))
+    with m_col2:
+        st.metric("Total Data Transaksi Aktif", len(db_all["daily_records"]))
+    with m_col3:
+        st.metric("Total Log Riwayat Perubahan", len(db_all["change_history"]))
+
+    pilihan_tabel = st.radio(
+        "Pilih Tabel Database yang Ingin Dibaca:",
+        options=[
+            "📊 Tabel Transaksi Harian (daily_records)",
+            "📅 Tabel Periode (periods)",
+            "🕒 Tabel Riwayat Audit (change_history)"
+        ],
+        horizontal=True
+    )
+
+    if "daily_records" in pilihan_tabel:
+        st.markdown("#### 📋 Isi Tabel `daily_records` (Baris Transaksi yang Memiliki Nilai > 0)")
+        df_daily = pd.DataFrame(db_all["daily_records"])
+        if not df_daily.empty:
+            st.dataframe(df_daily, use_container_width=True, hide_index=True)
+            csv_daily = df_daily.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Unduh Tabel daily_records (CSV)", csv_daily, "table_daily_records.csv", "text/csv")
+        else:
+            st.info("Tabel daily_records kosong.")
+
+    elif "periods" in pilihan_tabel:
+        st.markdown("#### 📅 Isi Tabel `periods` (Daftar Periode)")
+        df_periods = pd.DataFrame(db_all["periods"])
+        if not df_periods.empty:
+            df_periods["nama_bulan"] = df_periods["month"].map(MONTH_NAMES_ID)
+            st.dataframe(df_periods, use_container_width=True, hide_index=True)
+            csv_periods = df_periods.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Unduh Tabel periods (CSV)", csv_periods, "table_periods.csv", "text/csv")
+        else:
+            st.info("Tabel periods kosong.")
+
+    else:
+        st.markdown("#### 🕒 Isi Tabel `change_history` (Audit Trail Database)")
+        df_raw_hist = pd.DataFrame(db_all["change_history"])
+        if not df_raw_hist.empty:
+            st.dataframe(df_raw_hist, use_container_width=True, hide_index=True)
+            csv_raw_hist = df_raw_hist.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Unduh Tabel change_history (CSV)", csv_raw_hist, "table_change_history.csv", "text/csv")
+        else:
+            st.info("Tabel change_history kosong.")
+
