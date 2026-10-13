@@ -46,18 +46,6 @@ st.set_page_config(
 # Inisialisasi Database
 init_db()
 
-# Auto-seed data CADM (Agustus & awal September) jika database masih kosong
-try:
-    from database import get_db
-    from sample_data import seed_sample_data
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM daily_records WHERE jlh_valid > 0")
-        if cursor.fetchone()[0] == 0:
-            seed_sample_data()
-except Exception:
-    pass
-
 # 2. Styling CMS Minimalis & Aksesibilitas
 render_html("""
 <style>

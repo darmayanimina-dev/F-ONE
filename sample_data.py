@@ -88,15 +88,31 @@ def seed_sample_data():
     update_period_notes(period_id, notes_august)
     update_period_status(period_id, "COMPLETED")
 
-    # Siapkan juga Periode Aktif September 2026
-    sep_period = get_or_create_period(2026, 9)
-    # Masukkan beberapa contoh data hari awal September agar terlihat aktif dan hidup
-    sep_id = sep_period["id"]
-    upsert_daily_record(sep_id, "2026-09-01", 1, False, False, "", 15, 14, 1, 0, 0, 0, "Awal bulan lancar")
-    upsert_daily_record(sep_id, "2026-09-02", 2, False, False, "", 18, 17, 0, 1, 0, 0, "")
-    upsert_daily_record(sep_id, "2026-09-03", 3, False, False, "", 20, 18, 1, 0, 0, 1, "")
+    # Siapkan juga Periode Aktif Oktober 2026 dengan data yang sama jika diperlukan
+    oct_period = get_or_create_period(2026, 10)
+    oct_id = oct_period["id"]
+    for day, jlh_vld, nda, lokal, haji, emas, cash, is_hol, hol_name, cat in aug_data:
+        date_str = f"2026-10-{day:02d}"
+        is_sun = day in {4, 11, 18, 25}  # Hari Minggu Oktober 2026
+        upsert_daily_record(
+            period_id=oct_id,
+            date_str=date_str,
+            day_num=day,
+            is_sunday=is_sun,
+            is_holiday=is_hol,
+            holiday_name=hol_name,
+            jlh_valid=jlh_vld,
+            order_nda=nda,
+            jlh_order_lokal=lokal,
+            acc_haji=haji,
+            acc_emas=emas,
+            acc_cash=cash,
+            catatan=cat
+        )
+    update_period_notes(oct_id, notes_august)
 
 
 if __name__ == "__main__":
     seed_sample_data()
     print("Sample data seeded successfully!")
+
