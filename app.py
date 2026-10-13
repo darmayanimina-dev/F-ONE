@@ -291,12 +291,32 @@ if "dialog_target_date" not in st.session_state:
     st.session_state["dialog_target_date"] = None
 
 
+# Cek query parameters (misal dari navigasi atau klik tombol Edit di tabel)
+if "year" in st.query_params:
+    try:
+        st.session_state["selected_year"] = int(st.query_params["year"])
+    except (ValueError, TypeError):
+        pass
+    del st.query_params["year"]
+
+if "month" in st.query_params:
+    try:
+        st.session_state["selected_month"] = int(st.query_params["month"])
+    except (ValueError, TypeError):
+        pass
+    del st.query_params["month"]
+
 # Deteksi query param ?edit=YYYY-MM-DD jika user klik tombol [✏️ Edit] langsung di tabel
 query_target_edit = None
 if "edit" in st.query_params:
     query_target_edit = st.query_params["edit"]
-    # Bersihkan query params agar tidak terus menerus terbuka saat refresh
     del st.query_params["edit"]
+    try:
+        parsed_dt = datetime.datetime.strptime(query_target_edit, "%Y-%m-%d").date()
+        st.session_state["selected_year"] = parsed_dt.year
+        st.session_state["selected_month"] = parsed_dt.month
+    except Exception:
+        pass
 
 
 # Ambil data periode aktif
@@ -310,32 +330,44 @@ p_title = f"{nama_bulan} {st.session_state['selected_year']}"
 # 4. Modal Dialog Input / Edit Order (@st.dialog)
 @st.dialog("📝 Input / Edit Rekap Order Fidusia")
 def dialog_input_order(default_date_str: str = None):
-    p_yr = st.session_state["selected_year"]
-    p_mo = st.session_state["selected_month"]
-    _, num_days = calendar.monthrange(p_yr, p_mo)
-
     if default_date_str:
         try:
             curr_date = datetime.datetime.strptime(default_date_str, "%Y-%m-%d").date()
+            p_yr = curr_date.year
+            p_mo = curr_date.month
         except Exception:
+            p_yr = st.session_state.get("selected_year", today.year)
+            p_mo = st.session_state.get("selected_month", today.month)
             curr_date = datetime.date(p_yr, p_mo, 1)
     else:
+        p_yr = st.session_state.get("selected_year", today.year)
+        p_mo = st.session_state.get("selected_month", today.month)
         if p_yr == today.year and p_mo == today.month:
             curr_date = today
         else:
             curr_date = datetime.date(p_yr, p_mo, 1)
 
+    _, num_days = calendar.monthrange(p_yr, p_mo)
+    min_date = datetime.date(p_yr, p_mo, 1)
+    max_date = datetime.date(p_yr, p_mo, num_days)
+
+    # Proteksi: Pastikan curr_date selalu berada dalam rentang min_date dan max_date
+    if curr_date < min_date:
+        curr_date = min_date
+    elif curr_date > max_date:
+        curr_date = max_date
+
     render_html(f"""
     <div style='background: #EFF6FF; border: 1.5px solid #3B82F6; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;'>
-        <b style='color: #1E3A8A; font-size: 1.05rem;'>📅 Periode: {MONTH_NAMES_ID[p_mo]} {p_yr}</b>
+        <b style='color: #1E3A8A; font-size: 1.05rem;'>📅 Periode: {MONTH_NAMES_ID.get(p_mo, '')} {p_yr}</b>
     </div>
     """)
 
     tgl_selected = st.date_input(
         "Pilih Tanggal Transaksi:",
         value=curr_date,
-        min_value=datetime.date(p_yr, p_mo, 1),
-        max_value=datetime.date(p_yr, p_mo, num_days),
+        min_value=min_date,
+        max_value=max_date,
         format="DD/MM/YYYY"
     )
 
@@ -415,8 +447,9 @@ def dialog_input_order(default_date_str: str = None):
     b1, b2 = st.columns(2)
     with b1:
         if st.button("💾 Simpan Data", type="primary", use_container_width=True):
+            target_period = get_or_create_period(tgl_selected.year, tgl_selected.month)
             upsert_daily_record(
-                period_id=active_period["id"],
+                period_id=target_period["id"],
                 date_str=tgl_str,
                 day_num=day_num,
                 is_sunday=is_sunday,
@@ -430,10 +463,14 @@ def dialog_input_order(default_date_str: str = None):
                 acc_cash=acc_cash,
                 catatan=catatan
             )
+            st.session_state["selected_year"] = tgl_selected.year
+            st.session_state["selected_month"] = tgl_selected.month
             st.success("Berhasil disimpan!")
             st.rerun()
     with b2:
         if st.button("Batal", use_container_width=True):
+            st.session_state["selected_year"] = p_yr
+            st.session_state["selected_month"] = p_mo
             st.rerun()
 
 
@@ -568,7 +605,8 @@ with main_head_col:
 
 with main_act_col:
     st.write("")
-    if st.button("➕ Catat Order Hari Ini", type="primary", use_container_width=True):
+    btn_catat_label = "➕ Catat Order Hari Ini" if is_running_now else f"➕ Catat Order {nama_bulan}"
+    if st.button(btn_catat_label, type="primary", use_container_width=True):
         dialog_input_order()
 
 
@@ -598,6 +636,7 @@ render_html(f"""
 
 # 7. TABEL BUKU BESAR (7 KOLOM SESUAI BUKU FISIK CADM)
 mo = active_period["month"]
+yr = active_period["year"]
 table_html_rows = []
 
 for idx, r in enumerate(processed_records):
@@ -639,7 +678,7 @@ for idx, r in enumerate(processed_records):
     tgl_cell = f'<span style="font-weight:800; font-size:1.05rem; color:#1E3A8A;">{day_num}</span>'
     
     # Tombol [✏️ Edit] jelas dan mudah diklik
-    action_html = f'<a href="?edit={date_str}" target="_self" class="action-edit-btn">✏️ Edit</a>'
+    action_html = f'<a href="?edit={date_str}&month={mo}&year={yr}" target="_self" class="action-edit-btn">✏️ Edit</a>'
 
     table_html_rows.append(
         f'<tr class="{r_cls}">'
