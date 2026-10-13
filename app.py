@@ -757,16 +757,17 @@ with tab_riwayat:
 
     c_filt1, c_filt2 = st.columns([2, 1])
     with c_filt1:
+        periode_label = f"Bulan Ini ({p_title})" if is_running_now else f"{p_title}"
         filter_opt = st.radio(
             "Pilih Periode:",
-            options=[f"Bulan Ini ({p_title})", "Semua Bulan"],
+            options=[periode_label, "Semua Bulan"],
             horizontal=True
         )
     with c_filt2:
         st.write("")
         hist_limit = st.selectbox("Jumlah baris:", [50, 100, 200], index=1)
 
-    target_pid = active_period["id"] if "Bulan Ini" in filter_opt else None
+    target_pid = active_period["id"] if filter_opt != "Semua Bulan" else None
     history_list = get_change_history(period_id=target_pid, limit=hist_limit)
 
     if not history_list:
