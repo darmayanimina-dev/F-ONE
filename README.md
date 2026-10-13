@@ -65,7 +65,7 @@ Seluruh data transaksi, periode bulanan, dan jejak riwayat audit tersimpan secar
 | `catatan` | `TEXT` | Catatan transaksi debitur / berkas khusus |
 | `updated_at` | `TIMESTAMP` | Waktu pencatatan / pembaruan |
 
-### 3. Tabel `change_history` (Audit Trail & Log Riwayat Perubahan)
+### 3. Tabel `change_history` (Riwayat Perubahan)
 | Kolom | Tipe Data | Keterangan |
 | :--- | :--- | :--- |
 | `id` | `INTEGER PRIMARY KEY` | ID log riwayat |

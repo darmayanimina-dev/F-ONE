@@ -744,13 +744,13 @@ with tab_buku:
 
 
 with tab_riwayat:
-    render_html(f"""
+    render_html("""
     <div style="margin-bottom: 12px;">
         <h3 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: #1E3A8A;">
-            🕒 Riwayat Perubahan & Audit Trail
+            🕒 Riwayat Perubahan
         </h3>
-        <div style="font-size: 0.92rem; color: #64748B; margin-top: 2px;">
-            Log historis setiap aksi input, edit, dan revisi transaksi fidusia CADM secara transparan.
+        <div style="font-size: 0.95rem; color: #64748B; margin-top: 2px;">
+            Catatan riwayat input dan perubahan data buku besar.
         </div>
     </div>
     """)
@@ -758,22 +758,28 @@ with tab_riwayat:
     c_filt1, c_filt2 = st.columns([2, 1])
     with c_filt1:
         filter_opt = st.radio(
-            "Pilih Cakupan Riwayat:",
-            options=["Semua Riwayat Transaksi", f"Hanya Periode Aktif ({p_title})"],
+            "Pilih Periode:",
+            options=[f"Bulan Ini ({p_title})", "Semua Bulan"],
             horizontal=True
         )
     with c_filt2:
         st.write("")
-        hist_limit = st.selectbox("Maksimal Baris Ditampilkan:", [50, 100, 200, 500], index=1)
+        hist_limit = st.selectbox("Jumlah baris:", [50, 100, 200], index=1)
 
-    target_pid = active_period["id"] if "Periode Aktif" in filter_opt else None
+    target_pid = active_period["id"] if "Bulan Ini" in filter_opt else None
     history_list = get_change_history(period_id=target_pid, limit=hist_limit)
 
     if not history_list:
-        st.info("Belum ada riwayat perubahan data yang tercatat.")
+        st.info("Belum ada riwayat perubahan data.")
     else:
-        st.markdown(f"**Menampilkan {len(history_list)} riwayat perubahan terbaru (format tabel):**")
+        st.markdown(f"**Menampilkan {len(history_list)} riwayat terakhir:**")
         hist_rows = []
+        action_map = {
+            "UPDATE": "Ubah Data",
+            "INPUT": "Input Baru",
+            "INPUT_AWAL": "Data Awal",
+            "RESET": "Reset Data"
+        }
         for h in history_list:
             dt_raw = h.get("changed_at", "")
             try:
@@ -784,7 +790,7 @@ with tab_riwayat:
 
             b_name = MONTH_NAMES_ID.get(h.get("month", 0), f"Bln {h.get('month', '')}")
             p_label = f"{b_name} {h.get('year', '')}"
-            tgl_trx = f"{h.get('day_num', '')} ({h.get('date_str', '')})"
+            tgl_trx = f"Tgl {h.get('day_num', '')}"
 
             v_chg = f"{h.get('old_valid', 0)} ➔ {h.get('new_valid', 0)}" if h.get('old_valid', 0) != h.get('new_valid', 0) else str(h.get('new_valid', 0))
             n_chg = f"{h.get('old_nda', 0)} ➔ {h.get('new_nda', 0)}" if h.get('old_nda', 0) != h.get('new_nda', 0) else str(h.get('new_nda', 0))
@@ -793,18 +799,21 @@ with tab_riwayat:
             e_chg = f"{h.get('old_emas', 0)} ➔ {h.get('new_emas', 0)}" if h.get('old_emas', 0) != h.get('new_emas', 0) else str(h.get('new_emas', 0))
             c_chg = f"{h.get('old_cash', 0)} ➔ {h.get('new_cash', 0)}" if h.get('old_cash', 0) != h.get('new_cash', 0) else str(h.get('new_cash', 0))
 
+            raw_act = h.get("action_type", "")
+            action_text = action_map.get(raw_act, raw_act)
+
             hist_rows.append({
-                "Waktu Perubahan": dt_fmt,
-                "Periode": p_label,
-                "Tanggal Transaksi": tgl_trx,
-                "Aksi": h.get("action_type", ""),
-                "Valid": v_chg,
-                "Order NDA": n_chg,
-                "Lokal": l_chg,
-                "Haji": h_chg,
-                "Emas": e_chg,
-                "Cash": c_chg,
-                "Rincian Perubahan": h.get("catatan_perubahan", ""),
+                "Waktu": dt_fmt,
+                "Bulan": p_label,
+                "Tanggal": tgl_trx,
+                "Aksi": action_text,
+                "Total Valid": v_chg,
+                "Nota Dana": n_chg,
+                "Notaris Lokal": l_chg,
+                "ACC Haji": h_chg,
+                "ACC Emas": e_chg,
+                "ACC Cash": c_chg,
+                "Keterangan": h.get("catatan_perubahan", ""),
             })
 
         df_hist = pd.DataFrame(hist_rows)
@@ -814,15 +823,16 @@ with tab_riwayat:
         with d_col1:
             csv_hist = df_hist.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📥 Unduh Tabel Riwayat Perubahan (CSV)",
+                label="📥 Unduh Riwayat (CSV)",
                 data=csv_hist,
-                file_name=f"F-ONE_Riwayat_Audit_{datetime.date.today().strftime('%Y%m%d')}.csv",
+                file_name=f"Riwayat_Perubahan_{datetime.date.today().strftime('%Y%m%d')}.csv",
                 mime="text/csv"
             )
         with d_col2:
-            if st.button("🗑️ Reset Riwayat Perubahan", use_container_width=True):
+            if st.button("🗑️ Hapus Riwayat", use_container_width=True):
                 reset_change_history(target_pid)
-                st.success("Riwayat berhasil direset.")
+                st.success("Riwayat berhasil dihapus.")
                 st.rerun()
+
 
 
