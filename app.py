@@ -7,9 +7,17 @@ Tata Letak CMS Minimalis & Profesional:
 - Status rekonsiliasi ringkas: Total Valid vs Total Order (🟢 MATCH / 🔴 MISMATCH).
 - 100% Bersih tanpa dummy data.
 """
+import sys
+import os
 import datetime
 import calendar
 import io
+
+# Pastikan direktori root aplikasi masuk ke sys.path untuk Streamlit Cloud
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if _BASE_DIR not in sys.path:
+    sys.path.insert(0, _BASE_DIR)
+
 import pandas as pd
 import streamlit as st
 
