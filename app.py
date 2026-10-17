@@ -26,6 +26,8 @@ from database import (
     update_period_notes,
     get_change_history,
     reset_change_history,
+    get_active_storage_mode,
+    is_using_turso,
     MONTH_NAMES_ID
 )
 from calculations import compute_cumulative_records, calculate_daily_match
@@ -483,10 +485,16 @@ if query_target_edit:
 
 # 5. CMS SIDEBAR (Menu Navigasi Samping)
 with st.sidebar:
-    render_html("""
+    storage_badge = (
+        '<div style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; background: #ECFDF5; color: #047857; padding: 4px 10px; border-radius: 6px; border: 1px solid #A7F3D0;">☁️ Cloud DB: Turso (Aman)</div>'
+        if is_using_turso() else
+        '<div style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; background: #FEF3C7; color: #B45309; padding: 4px 10px; border-radius: 6px; border: 1px solid #FDE68A;">💾 DB: SQLite Lokal</div>'
+    )
+    render_html(f"""
     <div class="cms-brand">
         <div class="cms-brand-title">⚖️ F-ONE</div>
         <div class="cms-brand-desc">Fidusia Order &amp; Numbering Efficiency</div>
+        {storage_badge}
     </div>
     """)
 
